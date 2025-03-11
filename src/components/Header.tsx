@@ -32,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
             <path d="M7 16h10" />
           </svg>
         </div>
-        <h1 className="text-xl font-semibold tracking-tight">Snackable UI</h1>
+        <h1 className="text-xl font-semibold tracking-tight">beaUX</h1>
       </div>
       <div className="flex items-center gap-4">
         <div className="text-sm text-muted-foreground">
