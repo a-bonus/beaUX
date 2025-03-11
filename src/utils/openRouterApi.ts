@@ -20,16 +20,18 @@ interface OpenRouterResponse {
  * Generate a React component using OpenRouter AI
  * 
  * @param prompt The description of the component to generate
- * @param apiKey OpenRouter API Key
  * @returns The generated React component code
  */
-export const generateComponent = async (prompt: string, apiKey: string): Promise<string> => {
+export const generateComponent = async (prompt: string): Promise<string> => {
   if (!prompt.trim()) {
     throw new Error('Prompt cannot be empty');
   }
 
+  // Use the environment variable for the API key
+  const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+
   if (!apiKey) {
-    throw new Error('OpenRouter API key is required');
+    throw new Error('OpenRouter API key is not configured');
   }
 
   const systemPrompt = `You are an expert React developer. Generate a clean, functional React component based on the user's description. 

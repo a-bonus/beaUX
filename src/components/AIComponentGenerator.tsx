@@ -12,7 +12,6 @@ const AIComponentGenerator: React.FC<AIComponentGeneratorProps> = ({
   className,
 }) => {
   const [prompt, setPrompt] = useState('');
-  const [apiKey, setApiKey] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,16 +21,11 @@ const AIComponentGenerator: React.FC<AIComponentGeneratorProps> = ({
       return;
     }
 
-    if (!apiKey.trim()) {
-      setError('Please enter your OpenRouter API key');
-      return;
-    }
-
     setIsGenerating(true);
     setError(null);
 
     try {
-      const generatedCode = await generateComponent(prompt, apiKey);
+      const generatedCode = await generateComponent(prompt);
       onGenerate(generatedCode);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate component');
@@ -48,20 +42,6 @@ const AIComponentGenerator: React.FC<AIComponentGeneratorProps> = ({
       <h3 className="text-sm font-medium mb-3">AI Component Generator</h3>
       
       <div className="space-y-3">
-        <div className="space-y-2">
-          <label htmlFor="apiKey" className="text-xs text-muted-foreground block">
-            OpenRouter API Key
-          </label>
-          <input
-            id="apiKey"
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="Enter your OpenRouter API key"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          />
-        </div>
-        
         <div className="space-y-2">
           <label htmlFor="prompt" className="text-xs text-muted-foreground block">
             Component Description
