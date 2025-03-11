@@ -24,9 +24,29 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
             xmlns="http://www.w3.org/2000/svg"
             className="mr-2"
           >
-            <rect width="200" height="200" rx="40" fill="#00E5C7" />
+            {/* Simplified phone body with more elegant proportions */}
+            <rect 
+              x="40" 
+              y="20" 
+              width="120" 
+              height="160" 
+              rx="24" 
+              fill="#00E5C7" 
+              stroke="white"
+              strokeWidth="4"
+            />
+            
+            {/* Simplified notch/camera */}
+            <circle 
+              cx="100" 
+              cy="35" 
+              r="5" 
+              fill="white" 
+            />
+            
+            {/* Simplified heart */}
             <path 
-              d="M135.278 75.419C127.384 54.384 98.4344 67.49 100.009 92.002C101.585 67.49 72.6358 54.384 64.7417 75.419C56.8477 96.453 77.8824 125.403 100.009 142.35C122.136 125.403 143.171 96.453 135.278 75.419Z" 
+              d="M100 140 C100 140 75 120 75 100 C75 85 85 80 95 80 C99 80 100 82 100 82 C100 82 101 80 105 80 C115 80 125 85 125 100 C125 120 100 140 100 140 Z" 
               fill="white"
             />
           </svg>
