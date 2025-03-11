@@ -5,6 +5,8 @@ export const inputComponents = [
     name: 'Text Input',
     description: 'A standard text input field',
     code: `function TextInput() {
+  const [value, setValue] = React.useState('');
+  
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <label 
@@ -19,6 +21,8 @@ export const inputComponents = [
       </label>
       <input 
         type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
         placeholder="Enter text..."
         style={{ 
           padding: '12px 16px',
@@ -30,6 +34,11 @@ export const inputComponents = [
           transition: 'border-color 0.2s'
         }}
       />
+      {value && (
+        <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+          You typed: {value}
+        </div>
+      )}
     </div>
   );
 }`,

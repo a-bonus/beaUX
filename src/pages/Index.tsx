@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import CodeEditor from '@/components/CodeEditor';
@@ -5,6 +6,8 @@ import LivePreview from '@/components/LivePreview';
 import ComponentLibrary from '@/components/ComponentLibrary';
 
 const defaultCode = `function MyComponent() {
+  const [count, setCount] = React.useState(0);
+  
   return (
     <div style={{ 
       padding: '20px',
@@ -19,17 +22,33 @@ const defaultCode = `function MyComponent() {
         fontWeight: '600',
         color: '#111827'
       }}>
-        Hello Snackable UI
+        Hello beaUX
       </h2>
       
       <p style={{ 
         margin: '0',
         color: '#4b5563',
         fontSize: '14px',
-        lineHeight: '1.5'
+        lineHeight: '1.5',
+        marginBottom: '16px'
       }}>
         Start by editing this component or selecting from the library.
       </p>
+      
+      <button 
+        onClick={() => setCount(count + 1)}
+        style={{
+          backgroundColor: '#3b82f6',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          padding: '8px 16px',
+          fontSize: '14px',
+          cursor: 'pointer'
+        }}
+      >
+        Count: {count}
+      </button>
     </div>
   );
 }`;

@@ -5,6 +5,8 @@ export const buttonComponents = [
     name: 'Primary Button',
     description: 'A standard primary button component',
     code: `function PrimaryButton() {
+  const [clicked, setClicked] = React.useState(0);
+  
   return (
     <button 
       style={{ 
@@ -18,9 +20,12 @@ export const buttonComponents = [
         fontSize: '14px',
         transition: 'background-color 0.2s'
       }}
-      onClick={() => console.log('Primary button clicked')}
+      onClick={() => {
+        setClicked(clicked + 1);
+        console.log('Primary button clicked', clicked + 1);
+      }}
     >
-      Primary Button
+      Primary Button {clicked > 0 ? \`(Clicked \${clicked} times)\` : ''}
     </button>
   );
 }`,
@@ -31,6 +36,8 @@ export const buttonComponents = [
     name: 'Secondary Button',
     description: 'A bordered secondary button',
     code: `function SecondaryButton() {
+  const [clicked, setClicked] = React.useState(0);
+  
   return (
     <button 
       style={{ 
@@ -44,9 +51,12 @@ export const buttonComponents = [
         fontSize: '14px',
         transition: 'all 0.2s'
       }}
-      onClick={() => console.log('Secondary button clicked')}
+      onClick={() => {
+        setClicked(clicked + 1);
+        console.log('Secondary button clicked', clicked + 1);
+      }}
     >
-      Secondary Button
+      Secondary Button {clicked > 0 ? \`(Clicked \${clicked} times)\` : ''}
     </button>
   );
 }`,

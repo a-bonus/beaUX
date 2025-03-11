@@ -1,3 +1,4 @@
+
 // Simplified transformCode function - no imports needed
 export const transformCode = (code: string): { Component: any | null; error: string | null } => {
   try {
@@ -10,32 +11,31 @@ export const transformCode = (code: string): { Component: any | null; error: str
     }
 
     // Extract the component name from the code
-    const componentName = code.match(/function\s+([^({\s]+)/)?.[1] || 'MyComponent';
+    const componentNameMatch = code.match(/function\s+([^({\s]+)/);
+    const componentName = componentNameMatch ? componentNameMatch[1] : 'MyComponent';
     
-    // Simple approach: evaluate the code directly in the context where React is available
+    // Get React from the global scope
+    const ReactLib = (window as any).React;
+    
+    if (!ReactLib) {
+      return {
+        Component: null,
+        error: "React not found in global scope. Make sure React is globally available."
+      };
+    }
+    
     try {
-      // Since we're using Vite/React, we need to access React from the global scope
-      // to ensure JSX works properly when evaluated
-      const ReactLib = (window as any).React;
+      // Prepare the transpiled code with proper JSX support
+      const functionBody = `
+        ${code}
+        return ${componentName};
+      `;
       
-      if (!ReactLib) {
-        return {
-          Component: null,
-          error: "React not found in global scope. Make sure React is globally available."
-        };
-      }
+      // When creating the function, pass React as a parameter
+      // This ensures JSX transformation will work properly
+      const fn = new Function('React', functionBody);
       
-      // Use Function constructor to create a function that can execute our code
-      const fn = new Function('React', `
-        try {
-          ${code}
-          return ${componentName};
-        } catch (e) {
-          throw e;
-        }
-      `);
-      
-      // Execute with React from the global scope
+      // Execute the function with React as an argument
       const Component = fn(ReactLib);
       
       if (typeof Component !== 'function') {
