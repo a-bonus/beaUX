@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { transformCode } from '@/utils/transformCode';
@@ -39,7 +38,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({
       </div>
       
       <div className="flex-1 bg-background flex items-center justify-center p-8 overflow-auto">
-        <div className="relative w-full h-full flex items-center justify-center">
+        <div className="relative w-full max-h-full overflow-auto">
           {error ? (
             <div className="p-4 rounded-md bg-destructive/10 border border-destructive/20 max-w-md">
               <h4 className="font-medium text-sm text-destructive mb-1">Rendering Error</h4>
@@ -70,7 +69,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({
           ) : (
             <div 
               key={renderKey} 
-              className="preview-container animate-fade-in"
+              className="preview-container animate-fade-in w-full"
             >
               {React.createElement(Component)}
             </div>

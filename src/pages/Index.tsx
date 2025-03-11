@@ -153,7 +153,7 @@ const Index = () => {
           <div className="lg:col-span-6 flex flex-col space-y-6 h-full animate-slide-in-right" style={{ animationDelay: '200ms' }}>
             <LivePreview 
               code={code} 
-              className="flex-1 shadow-subtle"
+              className="flex-[2] shadow-subtle"
             />
             
             <div className="flex-1 overflow-hidden">
