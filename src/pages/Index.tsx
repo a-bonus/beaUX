@@ -1,12 +1,115 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState, useEffect } from 'react';
+import Header from '@/components/Header';
+import CodeEditor from '@/components/CodeEditor';
+import LivePreview from '@/components/LivePreview';
+import ComponentLibrary from '@/components/ComponentLibrary';
+
+const defaultCode = `// Write your component here
+function MyComponent() {
+  return (
+    <div style={{ 
+      padding: 20,
+      borderRadius: 8,
+      backgroundColor: '#f3f4f6',
+      maxWidth: 300
+    }}>
+      <h2 style={{ 
+        margin: 0, 
+        marginBottom: 10,
+        fontSize: 18,
+        fontWeight: 600,
+        color: '#111827'
+      }}>
+        Hello Snackable UI
+      </h2>
+      
+      <p style={{ 
+        margin: 0,
+        color: '#4b5563',
+        fontSize: 14,
+        lineHeight: 1.5
+      }}>
+        Start by editing this component or selecting from the library.
+      </p>
+    </div>
+  );
+}`;
 
 const Index = () => {
+  const [code, setCode] = useState(defaultCode);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Animation entrance effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleSelectComponent = (componentCode: string) => {
+    setCode(componentCode);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      
+      <main className={`flex-1 container mx-auto px-4 py-6 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-8rem)]">
+          {/* Left Column - Code Editor */}
+          <div className="lg:col-span-6 flex flex-col space-y-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Code Editor</h2>
+              <button
+                onClick={() => setCode(defaultCode)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                Reset
+              </button>
+            </div>
+            
+            <CodeEditor
+              value={code}
+              onChange={setCode}
+              className="flex-1 shadow-subtle"
+            />
+            
+            <div className="text-xs text-muted-foreground">
+              Tip: Write React component code directly or select from the component library
+            </div>
+          </div>
+          
+          {/* Right Column - Preview and Component Library */}
+          <div className="lg:col-span-6 flex flex-col space-y-6 h-full animate-slide-in-right" style={{ animationDelay: '200ms' }}>
+            {/* Live Preview */}
+            <LivePreview 
+              code={code} 
+              className="flex-1 shadow-subtle"
+            />
+            
+            {/* Component Library */}
+            <div className="flex-1 overflow-hidden">
+              <ComponentLibrary onSelectComponent={handleSelectComponent} />
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
