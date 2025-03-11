@@ -4,18 +4,21 @@ export const defaultComponents = [
     id: 'button-primary',
     name: 'Primary Button',
     description: 'A standard primary button component',
-    code: `function Button() {
+    code: `function PrimaryButton() {
   return (
     <button 
       style={{ 
-        backgroundColor: '#007AFF', 
+        backgroundColor: '#007AFF',
         color: 'white',
         padding: '12px 24px',
-        borderRadius: 8,
+        borderRadius: '8px',
         fontWeight: '500',
         border: 'none',
-        cursor: 'pointer'
+        cursor: 'pointer',
+        fontSize: '14px',
+        transition: 'background-color 0.2s'
       }}
+      onClick={() => console.log('Primary button clicked')}
     >
       Primary Button
     </button>
@@ -31,14 +34,17 @@ export const defaultComponents = [
   return (
     <button 
       style={{ 
-        backgroundColor: 'transparent', 
+        backgroundColor: 'transparent',
         color: '#007AFF',
         padding: '12px 24px',
-        borderRadius: 8,
+        borderRadius: '8px',
         fontWeight: '500',
         border: '1px solid #007AFF',
-        cursor: 'pointer'
+        cursor: 'pointer',
+        fontSize: '14px',
+        transition: 'all 0.2s'
       }}
+      onClick={() => console.log('Secondary button clicked')}
     >
       Secondary Button
     </button>
@@ -50,30 +56,30 @@ export const defaultComponents = [
     id: 'card-basic',
     name: 'Basic Card',
     description: 'A simple card component with shadow',
-    code: `function Card() {
+    code: `function BasicCard() {
   return (
     <div 
       style={{ 
-        padding: 24,
-        borderRadius: 12,
+        padding: '24px',
+        borderRadius: '12px',
         backgroundColor: 'white',
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-        maxWidth: 300
+        maxWidth: '300px'
       }}
     >
       <h3 style={{ 
-        margin: 0, 
-        marginBottom: 8,
-        fontSize: 18,
-        fontWeight: 600
+        margin: '0',
+        marginBottom: '8px',
+        fontSize: '18px',
+        fontWeight: '600'
       }}>
         Card Title
       </h3>
       <p style={{ 
-        margin: 0,
+        margin: '0',
         color: '#666',
-        fontSize: 14,
-        lineHeight: 1.5
+        fontSize: '14px',
+        lineHeight: '1.5'
       }}>
         This is a simple card component with some sample content.
       </p>
@@ -88,154 +94,33 @@ export const defaultComponents = [
     description: 'A standard text input field',
     code: `function TextInput() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <label 
         style={{ 
-          fontSize: 14, 
-          fontWeight: 500, 
-          marginBottom: 4,
+          fontSize: '14px',
+          fontWeight: '500',
+          marginBottom: '4px',
           color: '#333'
         }}
       >
-        Name
+        Label
       </label>
       <input 
         type="text"
-        placeholder="Enter your name"
+        placeholder="Enter text..."
         style={{ 
           padding: '12px 16px',
-          borderRadius: 8,
+          borderRadius: '8px',
           border: '1px solid #E2E8F0',
-          fontSize: 14,
+          fontSize: '14px',
           outline: 'none',
-          width: '100%'
+          width: '100%',
+          transition: 'border-color 0.2s'
         }}
       />
     </div>
   );
 }`,
     category: 'inputs'
-  },
-  {
-    id: 'alert-success',
-    name: 'Success Alert',
-    description: 'Success notification alert',
-    code: `function SuccessAlert() {
-  return (
-    <div 
-      style={{ 
-        display: 'flex',
-        alignItems: 'center',
-        backgroundColor: '#ECFDF5',
-        color: '#065F46',
-        padding: '12px 16px',
-        borderRadius: 6,
-        border: '1px solid #A7F3D0'
-      }}
-    >
-      <span style={{ marginRight: 12 }}>✓</span>
-      <p style={{ margin: 0, fontSize: 14 }}>
-        Operation completed successfully
-      </p>
-    </div>
-  );
-}`,
-    category: 'feedback'
-  },
-  {
-    id: 'badge-status',
-    name: 'Status Badge',
-    description: 'A small status indicator',
-    code: `function StatusBadge() {
-  return (
-    <span 
-      style={{ 
-        backgroundColor: '#E0F2FE',
-        color: '#0369A1',
-        fontSize: 12,
-        fontWeight: 500,
-        padding: '2px 8px',
-        borderRadius: 16,
-        display: 'inline-block'
-      }}
-    >
-      Active
-    </span>
-  );
-}`,
-    category: 'badges'
-  },
-  {
-    id: 'toggle-switch',
-    name: 'Toggle Switch',
-    description: 'A simple toggle switch component',
-    code: `function ToggleSwitch() {
-  return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
-      <input 
-        type="checkbox" 
-        id="switch"
-        style={{ 
-          opacity: 0,
-          width: 0,
-          height: 0
-        }}
-      />
-      <label 
-        htmlFor="switch"
-        style={{
-          display: 'block',
-          width: 48,
-          height: 28,
-          borderRadius: 14,
-          backgroundColor: '#007AFF',
-          cursor: 'pointer',
-          position: 'relative'
-        }}
-      >
-        <span 
-          style={{
-            position: 'absolute',
-            top: 4,
-            left: 4,
-            width: 20,
-            height: 20,
-            borderRadius: 10,
-            backgroundColor: 'white',
-            transition: 'transform 0.2s'
-          }}
-        />
-      </label>
-    </div>
-  );
-}`,
-    category: 'inputs'
-  },
-  {
-    id: 'avatar-user',
-    name: 'User Avatar',
-    description: 'Circular user profile avatar',
-    code: `function Avatar() {
-  return (
-    <div 
-      style={{ 
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#E0F2FE',
-        color: '#0369A1',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: 600,
-        fontSize: 16,
-        overflow: 'hidden'
-      }}
-    >
-      JD
-    </div>
-  );
-}`,
-    category: 'avatars'
   }
 ];

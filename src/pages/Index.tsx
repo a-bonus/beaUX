@@ -1,34 +1,32 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import CodeEditor from '@/components/CodeEditor';
 import LivePreview from '@/components/LivePreview';
 import ComponentLibrary from '@/components/ComponentLibrary';
 
-const defaultCode = `// Write your component here
-function MyComponent() {
+const defaultCode = `function MyComponent() {
   return (
     <div style={{ 
-      padding: 20,
-      borderRadius: 8,
+      padding: '20px',
+      borderRadius: '8px',
       backgroundColor: '#f3f4f6',
-      maxWidth: 300
+      maxWidth: '300px'
     }}>
       <h2 style={{ 
-        margin: 0, 
-        marginBottom: 10,
-        fontSize: 18,
-        fontWeight: 600,
+        margin: '0', 
+        marginBottom: '10px',
+        fontSize: '18px',
+        fontWeight: '600',
         color: '#111827'
       }}>
         Hello Snackable UI
       </h2>
       
       <p style={{ 
-        margin: 0,
+        margin: '0',
         color: '#4b5563',
-        fontSize: 14,
-        lineHeight: 1.5
+        fontSize: '14px',
+        lineHeight: '1.5'
       }}>
         Start by editing this component or selecting from the library.
       </p>
@@ -40,7 +38,6 @@ const Index = () => {
   const [code, setCode] = useState(defaultCode);
   const [isVisible, setIsVisible] = useState(false);
 
-  // Animation entrance effect
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(true);
@@ -59,7 +56,6 @@ const Index = () => {
       
       <main className={`flex-1 container mx-auto px-4 py-6 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-8rem)]">
-          {/* Left Column - Code Editor */}
           <div className="lg:col-span-6 flex flex-col space-y-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Code Editor</h2>
@@ -95,15 +91,12 @@ const Index = () => {
             </div>
           </div>
           
-          {/* Right Column - Preview and Component Library */}
           <div className="lg:col-span-6 flex flex-col space-y-6 h-full animate-slide-in-right" style={{ animationDelay: '200ms' }}>
-            {/* Live Preview */}
             <LivePreview 
               code={code} 
               className="flex-1 shadow-subtle"
             />
             
-            {/* Component Library */}
             <div className="flex-1 overflow-hidden">
               <ComponentLibrary onSelectComponent={handleSelectComponent} />
             </div>
