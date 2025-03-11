@@ -38,6 +38,9 @@ export const generateComponent = async (prompt: string): Promise<string> => {
 
 CRITICAL RENDERING REQUIREMENTS:
 - Use ONLY the named function syntax: function ComponentName() {} (NOT arrow functions or const declarations)
+- Component name MUST be in PascalCase and descriptive (e.g., TestComponent, UserProfile)
+- DO NOT use export statements - the component will be rendered directly
+- Add Component.displayName = 'ComponentName' for better debugging
 - ALWAYS begin with imports: import React, { useState, useEffect, etc. } from 'react';
 - Include PropTypes import if you use prop validation: import PropTypes from 'prop-types';
 - The component MUST be defined with the exact pattern 'function ComponentName() {' for the renderer to detect it
@@ -68,7 +71,20 @@ CODE QUALITY:
 - Ensure accessibility with proper aria attributes and semantic HTML
 - Extract complex logic to separate named functions within the component
 
-EXAMPLE OF A FULLY FUNCTIONAL COMPONENT:
+Example #1
+import React from 'react';
+
+function TestComponent() {
+  return (
+    <div style={{ textAlign: 'center', marginTop: '50px' }}>
+      <h1>Hello World</h1>
+    </div>
+  );
+}
+
+TestComponent.displayName = 'TestComponent';
+
+Example #2
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
