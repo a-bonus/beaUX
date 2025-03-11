@@ -57,6 +57,8 @@ const Index = () => {
   const [code, setCode] = useState(defaultCode);
   const [isVisible, setIsVisible] = useState(false);
   const [showAIGenerator, setShowAIGenerator] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isUnsplashMode, setIsUnsplashMode] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -65,6 +67,11 @@ const Index = () => {
     
     return () => clearTimeout(timer);
   }, []);
+
+  // Toggle to Unsplash mode when search query is non-empty
+  useEffect(() => {
+    setIsUnsplashMode(searchQuery.length > 0 && !showAIGenerator);
+  }, [searchQuery, showAIGenerator]);
 
   const handleSelectComponent = (componentCode: string) => {
     setCode(componentCode);
@@ -75,92 +82,186 @@ const Index = () => {
     setShowAIGenerator(false); // Hide the AI generator after code is generated
   };
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       
       <main className={`flex-1 container mx-auto px-4 py-6 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-8rem)]">
-          <div className="lg:col-span-6 flex flex-col space-y-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Code Editor</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowAIGenerator(!showAIGenerator)}
-                  className="text-xs bg-primary/10 text-primary hover:bg-primary/20 transition-colors rounded-md px-2 py-1 flex items-center gap-1"
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+        {/* Use a conditional layout: when showing components library as the primary focus (Unsplash mode) */}
+        {isUnsplashMode ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-8rem)]">
+            {/* Component Library becomes primary focus - left side, larger */}
+            <div className="lg:col-span-8 flex flex-col space-y-6 h-full animate-slide-in-right">
+              <ComponentLibrary 
+                onSelectComponent={handleSelectComponent} 
+                onSearch={handleSearch}
+                externalSearchQuery={searchQuery}
+              />
+            </div>
+            
+            {/* Code Editor and Preview - right side */}
+            <div className="lg:col-span-4 flex flex-col space-y-4 animate-slide-up">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Code Editor</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setShowAIGenerator(!showAIGenerator);
+                      if (!showAIGenerator) {
+                        setSearchQuery(''); // Clear search when showing AI generator
+                      }
+                    }}
+                    className="text-xs bg-primary/10 text-primary hover:bg-primary/20 transition-colors rounded-md px-2 py-1 flex items-center gap-1"
                   >
-                    <path d="M12 2v8" />
-                    <path d="m4.93 10.93 1.41 1.41" />
-                    <path d="M2 18h2" />
-                    <path d="M20 18h2" />
-                    <path d="m19.07 10.93-1.41 1.41" />
-                    <path d="M22 22H2" />
-                    <path d="m16 16-4 4-4-4" />
-                    <path d="M12 16V10" />
-                  </svg>
-                  {showAIGenerator ? 'Hide AI Generator' : 'AI Generator'}
-                </button>
-                <button
-                  onClick={() => setCode(defaultCode)}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 2v8" />
+                      <path d="m4.93 10.93 1.41 1.41" />
+                      <path d="M2 18h2" />
+                      <path d="M20 18h2" />
+                      <path d="m19.07 10.93-1.41 1.41" />
+                      <path d="M22 22H2" />
+                      <path d="m16 16-4 4-4-4" />
+                      <path d="M12 16V10" />
+                    </svg>
+                    AI Generator
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCode(defaultCode);
+                      setSearchQuery('');
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                   >
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                    <path d="M3 3v5h5" />
-                  </svg>
-                  Reset
-                </button>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                    </svg>
+                    Reset
+                  </button>
+                </div>
+              </div>
+              
+              <CodeEditor
+                value={code}
+                onChange={setCode}
+                className="flex-1 shadow-subtle"
+              />
+              
+              <LivePreview 
+                code={code} 
+                className="flex-1 shadow-subtle"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-8rem)]">
+            <div className="lg:col-span-6 flex flex-col space-y-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Code Editor</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowAIGenerator(!showAIGenerator)}
+                    className="text-xs bg-primary/10 text-primary hover:bg-primary/20 transition-colors rounded-md px-2 py-1 flex items-center gap-1"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 2v8" />
+                      <path d="m4.93 10.93 1.41 1.41" />
+                      <path d="M2 18h2" />
+                      <path d="M20 18h2" />
+                      <path d="m19.07 10.93-1.41 1.41" />
+                      <path d="M22 22H2" />
+                      <path d="m16 16-4 4-4-4" />
+                      <path d="M12 16V10" />
+                    </svg>
+                    {showAIGenerator ? 'Hide AI Generator' : 'AI Generator'}
+                  </button>
+                  <button
+                    onClick={() => setCode(defaultCode)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                    </svg>
+                    Reset
+                  </button>
+                </div>
+              </div>
+              
+              {showAIGenerator && (
+                <AIComponentGenerator
+                  onGenerate={handleGeneratedCode}
+                  className="animate-fade-in"
+                />
+              )}
+              
+              <CodeEditor
+                value={code}
+                onChange={setCode}
+                className="flex-1 shadow-subtle"
+              />
+              
+              <div className="text-xs text-muted-foreground">
+                Tip: Write React component code directly, select from the library, or use AI to generate components
               </div>
             </div>
             
-            {showAIGenerator && (
-              <AIComponentGenerator
-                onGenerate={handleGeneratedCode}
-                className="animate-fade-in"
+            <div className="lg:col-span-6 flex flex-col space-y-6 h-full animate-slide-in-right" style={{ animationDelay: '200ms' }}>
+              <LivePreview 
+                code={code} 
+                className="flex-[2] shadow-subtle"
               />
-            )}
-            
-            <CodeEditor
-              value={code}
-              onChange={setCode}
-              className="flex-1 shadow-subtle"
-            />
-            
-            <div className="text-xs text-muted-foreground">
-              Tip: Write React component code directly, select from the library, or use AI to generate components
+              
+              <div className="flex-1 overflow-hidden">
+                <ComponentLibrary 
+                  onSelectComponent={handleSelectComponent}
+                  onSearch={handleSearch}
+                  externalSearchQuery={searchQuery}
+                />
+              </div>
             </div>
           </div>
-          
-          <div className="lg:col-span-6 flex flex-col space-y-6 h-full animate-slide-in-right" style={{ animationDelay: '200ms' }}>
-            <LivePreview 
-              code={code} 
-              className="flex-[2] shadow-subtle"
-            />
-            
-            <div className="flex-1 overflow-hidden">
-              <ComponentLibrary onSelectComponent={handleSelectComponent} />
-            </div>
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );
