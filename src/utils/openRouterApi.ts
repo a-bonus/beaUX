@@ -34,8 +34,19 @@ export const generateComponent = async (prompt: string, apiKey: string): Promise
 
   const systemPrompt = `You are an expert React developer. Generate a clean, functional React component based on the user's description. 
   Return ONLY valid React component code without any explanations or markdown formatting.
-  The component should use functional component syntax with hooks as needed.
-  Use inline styling for simplicity, but follow good React practices.`;
+  IMPORTANT: Use the 'function ComponentName() {}' syntax (NOT arrow functions or const declarations).
+  The beaUX renderer requires this specific syntax to work properly.
+  Use inline styling for simplicity, but follow good React practices.
+  Example format:
+  
+  function MyComponent() {
+    // hooks and logic here
+    
+    return (
+      // JSX here
+    );
+  }
+  `;
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
