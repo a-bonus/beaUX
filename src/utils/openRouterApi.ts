@@ -115,7 +115,7 @@ function ProductCard({ name, price, imageUrl, onAddToCart, isOnSale = false }) {
       <h3 style={{ marginTop: '12px', fontSize: '18px' }}>{name}</h3>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
         <span style={{ fontWeight: 'bold', color: isOnSale ? '#e63946' : '#333' }}>
-          ${`{${price.toFixed(2)}}`} {isOnSale && <span style={{ fontSize: '12px' }}>SALE</span>}
+          ${'$'}{'{price.toFixed(2)}'} {isOnSale && <span style={{ fontSize: '12px' }}>SALE</span>}
         </span>
         <button 
           onClick={handleAddToCart}
