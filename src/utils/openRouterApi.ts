@@ -40,6 +40,12 @@ ESSENTIAL REQUIREMENTS:
 - Use ONLY the named function syntax: function ComponentName() {} (NOT arrow functions or const declarations)
 - The beaUX renderer specifically requires this syntax
 - Return ONLY valid code without explanations or markdown formatting
+- Include all necessary imports (React, hooks, PropTypes, etc.)
+
+HOW THE BEAUX PREVIEWER WORKS:
+- It looks for a function component using the regex pattern /function\\s+([^({\\s]+)/ to extract the component name
+- It creates a sandboxed iframe with React, ReactDOM, and Babel pre-loaded
+- It injects your component code into this iframe and renders it
 
 COMPONENT STRUCTURE:
 - Use PascalCase for component names (e.g., UserProfile not userProfile)
@@ -61,6 +67,9 @@ CODE QUALITY:
 - Extract complex logic to separate named functions within the component
 
 EXAMPLE FORMAT:
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+
 function ProductCard({ name, price, imageUrl, onAddToCart }) {
   const [isHovered, setIsHovered] = useState(false);
   
@@ -85,6 +94,13 @@ function ProductCard({ name, price, imageUrl, onAddToCart }) {
     </div>
   );
 }
+
+ProductCard.propTypes = {
+  name: PropTypes.string.isRequired,
+  price: PropTypes.number.isRequired,
+  imageUrl: PropTypes.string,
+  onAddToCart: PropTypes.func
+};
   `;
 
   try {
@@ -97,7 +113,7 @@ function ProductCard({ name, price, imageUrl, onAddToCart }) {
         'X-Title': 'beaUX Component Generator'
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-r1:free', // You can change this to another model
+        model: 'google/gemini-2.0-flash-lite-preview-02-05:free', // You can change this to another model
         messages: [
           {
             role: 'system',
