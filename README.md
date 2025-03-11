@@ -1,70 +1,177 @@
+# beaUX MVP Implementation Guide
 
-# Welcome to beaUX
+## **🚀 Overview**
+This document provides step-by-step instructions to build the **beaUX MVP** with two core features:
 
-## Project info
+1. **Component Previewing** – Users can enter React code and see a live preview.
+2. **AI-Generated Components** – Users can describe a component, and AI (Claude API) will generate React code.
 
-**URL**: https://lovable.dev/projects/c53c0a09-4d18-4075-87cb-620114901711
+---
 
-## How can I edit this code?
+## **🟢 Step 2: Build the Component Previewing System**
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/c53c0a09-4d18-4075-87cb-620114901711) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
+### **1. Set Up the Project with Vite & TailwindCSS**
+```bash
+npm create vite@latest beaUX --template react-ts
 cd beaUX
+npm install
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```
+Configure Tailwind in `tailwind.config.ts` and add global styles in `index.css`.
 
-# Step 3: Install the necessary dependencies.
-npm i
+### **2. Create the UI Layout (Editor + Preview Window)**
+Create `src/pages/Home.tsx`:
+```tsx
+import { useState } from "react";
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+export default function Home() {
+  const [code, setCode] = useState("<button>Click me</button>");
+
+  return (
+    <div className="grid grid-cols-2 h-screen p-4 gap-4">
+      <textarea
+        className="w-full h-full p-2 border rounded-lg font-mono"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+      />
+      <iframe
+        className="w-full h-full border rounded-lg"
+        srcDoc={`<html><body>${code}</body></html>`}
+      />
+    </div>
+  );
+}
 ```
 
-**Edit a file directly in GitHub**
+### **3. Safely Render Components Using an iframe Sandbox**
+```tsx
+const createBlobURL = (code: string) => {
+  const blob = new Blob([code], { type: "text/html" });
+  return URL.createObjectURL(blob);
+};
+<iframe src={createBlobURL(code)} />;
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### **4. Handle Errors Gracefully**
+```tsx
+<Suspense fallback={<div>Loading...</div>}>
+  <iframe src={createBlobURL(code)} />
+</Suspense>
+```
 
-**Use GitHub Codespaces**
+### **5. Deploy the MVP to Vercel**
+- Push code to **GitHub** and deploy to **Vercel**.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## **🟠 Step 3: Integrate AI-Generated Component Functionality**
 
-This project is built with:
+### **6. Set Up a Backend to Call the Claude API**
+Install dependencies:
+```bash
+npm install axios
+```
+Create `server.js`:
+```js
+import express from "express";
+import axios from "axios";
+import cors from "cors";
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+const app = express();
+app.use(express.json());
+app.use(cors());
 
-## How can I deploy this project?
+app.post("/generate", async (req, res) => {
+  const { prompt } = req.body;
+  try {
+    const response = await axios.post("https://api.anthropic.com/v1/claude", {
+      prompt: `Generate a React component for: ${prompt}`,
+      model: "claude-2",
+      apiKey: process.env.CLAUDE_API_KEY,
+    });
+    res.json({ code: response.data });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to generate component" });
+  }
+});
 
-Simply open [Lovable](https://lovable.dev/projects/c53c0a09-4d18-4075-87cb-620114901711) and click on Share -> Publish.
+app.listen(3001, () => console.log("Server running on port 3001"));
+```
 
-## I want to use a custom domain - is that possible?
+### **7. Create a Frontend UI for AI-Powered Component Generation**
+```tsx
+const [prompt, setPrompt] = useState("");
+const [generatedCode, setGeneratedCode] = useState("");
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+const generateComponent = async () => {
+  const response = await fetch("http://localhost:3001/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+
+  const data = await response.json();
+  setGeneratedCode(data.code);
+};
+
+return (
+  <div className="p-4">
+    <input
+      className="border p-2 rounded w-full"
+      placeholder="Describe your component..."
+      value={prompt}
+      onChange={(e) => setPrompt(e.target.value)}
+    />
+    <button className="mt-2 p-2 bg-blue-500 text-white rounded" onClick={generateComponent}>
+      Generate Component
+    </button>
+    <pre className="mt-4 bg-gray-100 p-2 rounded">{generatedCode}</pre>
+  </div>
+);
+```
+
+### **8. Inject AI-Generated Code into the Preview**
+```tsx
+<iframe srcDoc={`<html><body>${generatedCode}</body></html>`} />;
+```
+
+### **9. Cache AI-Generated Components**
+```tsx
+const cacheKey = `ai_component_${prompt}`;
+const cachedCode = localStorage.getItem(cacheKey);
+
+if (cachedCode) {
+  setGeneratedCode(cachedCode);
+} else {
+  fetch(...).then((data) => {
+    setGeneratedCode(data.code);
+    localStorage.setItem(cacheKey, data.code);
+  });
+}
+```
+
+### **10. Deploy AI Integration & Optimize for Performance**
+- Deploy **backend on Railway or Fly.io**.
+- Optimize API calls using **debounced input**:
+```tsx
+import { useState, useEffect } from "react";
+
+const [prompt, setPrompt] = useState("");
+const [debouncedPrompt, setDebouncedPrompt] = useState("");
+
+useEffect(() => {
+  const handler = setTimeout(() => setDebouncedPrompt(prompt), 500);
+  return () => clearTimeout(handler);
+}, [prompt]);
+```
+
+---
+
+## **✅ Next Steps**
+This guide takes you **from zero to MVP**. Now, you can:
+1. Refine the **UI/UX**.
+2. Add **styling and animations**.
+3. Optimize **performance and AI output quality**.
+
+💡 Need help? Start by **implementing the Component Previewing System first!** 🚀

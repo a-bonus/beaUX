@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -15,24 +14,24 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       className
     )}>
       <div className="flex items-center gap-2">
-        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+        {/* beaUX Logo */}
+        <div className="flex items-center">
           <svg 
-            width="18" 
-            height="18" 
-            viewBox="0 0 24 24" 
+            width="40" 
+            height="40" 
+            viewBox="0 0 200 200" 
             fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2.5" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            className="text-primary-foreground"
+            xmlns="http://www.w3.org/2000/svg"
+            className="mr-2"
           >
-            <path d="M7 8h10" />
-            <path d="M7 12h4" />
-            <path d="M7 16h10" />
+            <rect width="200" height="200" rx="40" fill="#00E5C7" />
+            <path 
+              d="M135.278 75.419C127.384 54.384 98.4344 67.49 100.009 92.002C101.585 67.49 72.6358 54.384 64.7417 75.419C56.8477 96.453 77.8824 125.403 100.009 142.35C122.136 125.403 143.171 96.453 135.278 75.419Z" 
+              fill="white"
+            />
           </svg>
+          <h1 className="text-xl font-semibold tracking-tight">beaUX</h1>
         </div>
-        <h1 className="text-xl font-semibold tracking-tight">beaUX</h1>
       </div>
       <div className="flex items-center gap-4">
         <div className="text-sm text-muted-foreground">

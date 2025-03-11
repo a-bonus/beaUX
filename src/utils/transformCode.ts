@@ -1,4 +1,3 @@
-
 // Simplified transformCode function - no imports needed
 export const transformCode = (code: string): { Component: any | null; error: string | null } => {
   try {
@@ -25,25 +24,67 @@ export const transformCode = (code: string): { Component: any | null; error: str
     }
     
     try {
-      // Prepare the transpiled code with proper JSX support
-      const functionBody = `
-        ${code}
-        return ${componentName};
+      // Create a blob URL for the iframe with HTML that includes React, ReactDOM, and Babel
+      const fullHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+          <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+          <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+          <style>
+            body { 
+              margin: 0; 
+              padding: 0; 
+              font-family: sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+            }
+            #root {
+              width: 100%;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="root"></div>
+          <script type="text/babel">
+            ${code}
+            
+            // Render the component to the root element
+            const rootElement = document.getElementById('root');
+            const root = ReactDOM.createRoot(rootElement);
+            root.render(React.createElement(${componentName}));
+          </script>
+        </body>
+        </html>
       `;
       
-      // When creating the function, pass React as a parameter
-      // This ensures JSX transformation will work properly
-      const fn = new Function('React', functionBody);
+      const blob = new Blob([fullHtml], { type: 'text/html' });
+      const blobUrl = URL.createObjectURL(blob);
       
-      // Execute the function with React as an argument
-      const Component = fn(ReactLib);
-      
-      if (typeof Component !== 'function') {
-        return {
-          Component: null,
-          error: `Component "${componentName}" is not a valid function. Make sure you're returning a React component.`
-        };
-      }
+      // Create a simple iframe component that loads the blob URL
+      const Component = () => {
+        // Clean up the blob URL when the component unmounts
+        ReactLib.useEffect(() => {
+          return () => {
+            URL.revokeObjectURL(blobUrl);
+          };
+        }, []);
+        
+        return ReactLib.createElement('iframe', {
+          src: blobUrl,
+          style: {
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            borderRadius: '8px',
+            backgroundColor: 'white',
+          },
+          title: 'Component Preview',
+        });
+      };
       
       return { Component, error: null };
     } catch (err) {

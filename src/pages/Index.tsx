@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import CodeEditor from '@/components/CodeEditor';
 import LivePreview from '@/components/LivePreview';
 import ComponentLibrary from '@/components/ComponentLibrary';
+import AIComponentGenerator from '@/components/AIComponentGenerator';
 
 const defaultCode = `function MyComponent() {
   const [count, setCount] = React.useState(0);
@@ -56,6 +56,7 @@ const defaultCode = `function MyComponent() {
 const Index = () => {
   const [code, setCode] = useState(defaultCode);
   const [isVisible, setIsVisible] = useState(false);
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -69,6 +70,11 @@ const Index = () => {
     setCode(componentCode);
   };
 
+  const handleGeneratedCode = (generatedCode: string) => {
+    setCode(generatedCode);
+    setShowAIGenerator(false); // Hide the AI generator after code is generated
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -78,26 +84,60 @@ const Index = () => {
           <div className="lg:col-span-6 flex flex-col space-y-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Code Editor</h2>
-              <button
-                onClick={() => setCode(defaultCode)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAIGenerator(!showAIGenerator)}
+                  className="text-xs bg-primary/10 text-primary hover:bg-primary/20 transition-colors rounded-md px-2 py-1 flex items-center gap-1"
                 >
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-                Reset
-              </button>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2v8" />
+                    <path d="m4.93 10.93 1.41 1.41" />
+                    <path d="M2 18h2" />
+                    <path d="M20 18h2" />
+                    <path d="m19.07 10.93-1.41 1.41" />
+                    <path d="M22 22H2" />
+                    <path d="m16 16-4 4-4-4" />
+                    <path d="M12 16V10" />
+                  </svg>
+                  {showAIGenerator ? 'Hide AI Generator' : 'AI Generator'}
+                </button>
+                <button
+                  onClick={() => setCode(defaultCode)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  Reset
+                </button>
+              </div>
             </div>
+            
+            {showAIGenerator && (
+              <AIComponentGenerator
+                onGenerate={handleGeneratedCode}
+                className="animate-fade-in"
+              />
+            )}
             
             <CodeEditor
               value={code}
@@ -106,7 +146,7 @@ const Index = () => {
             />
             
             <div className="text-xs text-muted-foreground">
-              Tip: Write React component code directly or select from the component library
+              Tip: Write React component code directly, select from the library, or use AI to generate components
             </div>
           </div>
           
