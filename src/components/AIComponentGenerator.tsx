@@ -25,8 +25,19 @@ const AIComponentGenerator: React.FC<AIComponentGeneratorProps> = ({
     setError(null);
 
     try {
-      const generatedCode = await generateComponent(prompt);
-      onGenerate(generatedCode);
+      const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error('OpenRouter API key is not configured');
+      }
+      
+      const result = await generateComponent(prompt, apiKey);
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      onGenerate(result.component);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate component');
     } finally {
