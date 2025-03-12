@@ -3,26 +3,20 @@ import {
   X,
   Plus,
   ChevronRight,
+  ChevronLeft,
+  Trash,
+  Save,
+  Undo2,
+  Redo2,
   ZoomIn,
   ZoomOut,
-  PanelLeft,
-  PanelRight,
-  Undo,
-  Redo,
-  Trash,
-  ChevronDown,
-  ChevronUp,
-  Move,
-  Save,
-  FilePlus,
-  FolderOpen,
-  Trash2,
+  FileCog,
+  FileJson,
   Download,
-  Upload,
-  ArrowRightCircle,
-  ArrowRight,
-  PackagePlus,
-  FileCode
+  Hand,
+  Move,
+  Code,
+  MousePointer
 } from 'lucide-react';
 
 interface ComponentNode {
@@ -50,135 +44,49 @@ const colors = {
 };
 
 const DiagramEditor: React.FC = () => {
+  // State for nodes and connections
   const [nodes, setNodes] = useState<ComponentNode[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
+  
+  // State for editor interaction
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [expandedNode, setExpandedNode] = useState<string | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
-  const [connectionStart, setConnectionStart] = useState<string | null>(null);
-  const [isCreatingConnection, setIsCreatingConnection] = useState(false);
-  const [zoom, setZoom] = useState(1);
+  const [expandedNode, setExpandedNode] = useState<string | null>(null);
   const [newNodeName, setNewNodeName] = useState('');
   const [newNodeType, setNewNodeType] = useState<ComponentNode['type']>('component');
-  const [history, setHistory] = useState<Array<{ nodes: ComponentNode[], connections: Connection[] }>>([]);
+  const [connectionStart, setConnectionStart] = useState<string | null>(null);
+  const [isCreatingConnection, setIsCreatingConnection] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [isPanMode, setIsPanMode] = useState(false);
+  
+  // State for undo/redo
+  const [history, setHistory] = useState<{nodes: ComponentNode[], connections: Connection[]}[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  
+  // State for feedback toast
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  
+  // State for save/load modals
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importJsonText, setImportJsonText] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [currentDiagramName, setCurrentDiagramName] = useState('My Diagram');
+  const [savedDiagrams, setSavedDiagrams] = useState<{id: string, name: string, timestamp: number}[]>([]);
+  
+  // Refs for interaction
   const editorRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [feedbackMessage, setFeedbackMessage] = useState('');
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const isDraggingCanvas = useRef(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
-  const [isPanMode, setIsPanMode] = useState(false);
-  
-  // State for diagram persistence
-  const [savedDiagrams, setSavedDiagrams] = useState<{id: string, name: string, timestamp: number}[]>([]);
-  const [currentDiagramName, setCurrentDiagramName] = useState('My Diagram');
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Sample data for demonstration
-  const initialSampleData: { nodes: ComponentNode[], connections: Connection[] } = {
-    nodes: [
-      { 
-        id: '1', 
-        name: 'Button', 
-        position: { x: 100, y: 100 }, 
-        color: colors.component,
-        type: 'component',
-        code: '',
-        notes: ''
-      },
-      { 
-        id: '2', 
-        name: 'Card', 
-        position: { x: 300, y: 150 }, 
-        color: colors.component,
-        type: 'component',
-        code: '',
-        notes: ''
-      },
-      { 
-        id: '3', 
-        name: 'HomePage', 
-        position: { x: 500, y: 100 }, 
-        color: colors.page,
-        type: 'page',
-        code: '',
-        notes: ''
-      },
-      { 
-        id: '4', 
-        name: 'useFetch', 
-        position: { x: 400, y: 300 }, 
-        color: colors.hook,
-        type: 'hook',
-        code: '',
-        notes: ''
-      }
-    ],
-    connections: [
-      { id: 'c1', sourceId: '1', targetId: '2', label: 'uses' },
-      { id: 'c2', sourceId: '2', targetId: '3', label: 'uses' },
-      { id: 'c3', sourceId: '4', targetId: '3', label: 'uses' }
-    ]
-  };
-
-  useEffect(() => {
-    // Load the saved diagrams list from localStorage
-    const savedDiagramsList = localStorage.getItem('beaUX-saved-diagrams');
-    if (savedDiagramsList) {
-      setSavedDiagrams(JSON.parse(savedDiagramsList));
-    }
-    
-    // Load the last edited diagram if it exists
-    const lastDiagram = localStorage.getItem('beaUX-current-diagram');
-    if (lastDiagram) {
-      try {
-        const parsed = JSON.parse(lastDiagram);
-        setNodes(parsed.nodes);
-        setConnections(parsed.connections);
-        setCurrentDiagramName(parsed.name || 'My Diagram');
-        saveToHistory(parsed.nodes, parsed.connections);
-        showFeedbackToast('Previous diagram loaded');
-      } catch (err) {
-        console.error('Failed to load saved diagram:', err);
-      }
-    } else {
-      // Use initial sample data if no saved diagram
-      setNodes(initialSampleData.nodes);
-      setConnections(initialSampleData.connections);
-      saveToHistory(initialSampleData.nodes, initialSampleData.connections);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      isDragging.current = false;
-      isDraggingCanvas.current = false;
-    };
-    
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    
-    return () => {
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, []);
-
-  useEffect(() => {
-    const autoSaveInterval = setInterval(() => {
-      // Only auto-save if we have nodes
-      if (nodes.length > 0) {
-        saveToLocalStorage(false);
-      }
-    }, 30000);
-    
-    return () => clearInterval(autoSaveInterval);
-  }, [nodes, connections, currentDiagramName]);
-
+  // Helper function to save to history for undo/redo
   const saveToHistory = (nodeState: ComponentNode[], connectionState: Connection[]) => {
     const newState = {
       nodes: [...nodeState],
@@ -198,483 +106,21 @@ const DiagramEditor: React.FC = () => {
     setHistoryIndex(newHistory.length - 1);
   };
 
-  const undo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      const prevState = history[newIndex];
-      setNodes(prevState.nodes);
-      setConnections(prevState.connections);
-      setHistoryIndex(newIndex);
-    }
-  };
-
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      const nextState = history[newIndex];
-      setNodes(nextState.nodes);
-      setConnections(nextState.connections);
-      setHistoryIndex(newIndex);
-    }
-  };
-
-  const handleNodeMouseDown = (nodeId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedNode(nodeId);
-    
-    // Start dragging
-    const node = nodes.find(n => n.id === nodeId);
-    if (node && editorRef.current) {
-      isDragging.current = true;
-      const rect = editorRef.current.getBoundingClientRect();
-      dragOffset.current = {
-        x: e.clientX - (node.position.x * zoom + rect.left + canvasOffset.x),
-        y: e.clientY - (node.position.y * zoom + rect.top + canvasOffset.y)
-      };
-    }
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    // When in pan mode, enable canvas dragging regardless of where you click
-    // Otherwise, only enable when clicking directly on the canvas background
-    if (isPanMode || e.target === e.currentTarget) {
-      isDraggingCanvas.current = true;
-      lastMousePosition.current = { x: e.clientX, y: e.clientY };
-      
-      // Change cursor style to indicate grabbing
-      if (editorRef.current) {
-        editorRef.current.style.cursor = 'grabbing';
-      }
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    // Handle canvas dragging
-    if (isDraggingCanvas.current) {
-      e.preventDefault();
-      const dx = e.clientX - lastMousePosition.current.x;
-      const dy = e.clientY - lastMousePosition.current.y;
-      
-      setCanvasOffset(prev => ({
-        x: prev.x + dx,
-        y: prev.y + dy
-      }));
-      
-      lastMousePosition.current = { x: e.clientX, y: e.clientY };
-      return;
-    }
-    
-    // Handle node dragging
-    if (isDragging.current && selectedNode && editorRef.current) {
-      e.preventDefault(); // Prevent text selection during drag
-      const rect = editorRef.current.getBoundingClientRect();
-      
-      const newX = (e.clientX - rect.left - dragOffset.current.x - canvasOffset.x) / zoom;
-      const newY = (e.clientY - rect.top - dragOffset.current.y - canvasOffset.y) / zoom;
-      
-      setNodes(prevNodes => prevNodes.map(node => {
-        if (node.id === selectedNode) {
-          return {
-            ...node,
-            position: { x: newX, y: newY }
-          };
-        }
-        return node;
-      }));
-    }
-    
-    // Update mouse position for connection preview
-    if (editorRef.current) {
-      const rect = editorRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left - canvasOffset.x) / zoom;
-      const y = (e.clientY - rect.top - canvasOffset.y) / zoom;
-      setMousePosition({ x, y });
-    }
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    // End canvas dragging
-    if (isDraggingCanvas.current) {
-      isDraggingCanvas.current = false;
-      if (editorRef.current) {
-        editorRef.current.style.cursor = 'grab';
-      }
-    }
-    
-    // Handle node drag end
-    if (isDragging.current && selectedNode) {
-      isDragging.current = false;
-      saveToHistory(nodes, connections);
-    }
-    
-    // Handle connection completion
-    if (connectionStart && isCreatingConnection) {
-      completeConnection(e);
-    }
-  };
-
-  useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      isDragging.current = false;
-      
-      if (isDraggingCanvas.current) {
-        isDraggingCanvas.current = false;
-        if (editorRef.current) {
-          editorRef.current.style.cursor = 'grab';
-        }
-      }
-    };
-    
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    
-    return () => {
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Space + mouse drag for canvas panning
-      if (e.code === 'Space' && editorRef.current) {
-        editorRef.current.style.cursor = 'grab';
-      }
-      
-      // Arrow keys for small movements
-      const moveAmount = 10;
-      if (e.key === 'ArrowUp') {
-        setCanvasOffset(prev => ({ ...prev, y: prev.y + moveAmount }));
-      } else if (e.key === 'ArrowDown') {
-        setCanvasOffset(prev => ({ ...prev, y: prev.y - moveAmount }));
-      } else if (e.key === 'ArrowLeft') {
-        setCanvasOffset(prev => ({ ...prev, x: prev.x + moveAmount }));
-      } else if (e.key === 'ArrowRight') {
-        setCanvasOffset(prev => ({ ...prev, x: prev.x - moveAmount }));
-      }
-    };
-    
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && editorRef.current) {
-        editorRef.current.style.cursor = 'default';
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
-
-  const calculateConnectionPath = (sourceId: string, targetId: string) => {
-    const sourceCenter = getNodeCenter(sourceId);
-    const targetCenter = getNodeCenter(targetId);
-    
-    // Calculate the path
-    const dx = targetCenter.x - sourceCenter.x;
-    const dy = targetCenter.y - sourceCenter.y;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    
-    // Calculate control points for a curved path
-    const controlPointOffset = Math.min(80, length / 3);
-    
-    // Calculate the angle to offset the control point perpendicular to the line
-    const angle = Math.atan2(dy, dx) + Math.PI / 2;
-    const offsetX = controlPointOffset * Math.cos(angle);
-    const offsetY = controlPointOffset * Math.sin(angle);
-    
-    // Calculate the midpoint
-    const midX = (sourceCenter.x + targetCenter.x) / 2 + offsetX;
-    const midY = (sourceCenter.y + targetCenter.y) / 2 + offsetY;
-    
-    // Calculate the path
-    return {
-      path: `M ${sourceCenter.x} ${sourceCenter.y} Q ${midX} ${midY} ${targetCenter.x} ${targetCenter.y}`,
-      midX,
-      midY,
-      angle: Math.atan2(dy, dx) * 180 / Math.PI
-    };
-  };
-
-  const getLiveConnectionEndPoint = () => {
-    return mousePosition;
-  };
-
-  const startConnectionCreation = (nodeId: string) => {
-    setSelectedNode(nodeId);
-    setConnectionStart(nodeId);
-    setIsCreatingConnection(true);
-    
-    // Show visual feedback
-    const node = nodes.find(n => n.id === nodeId);
-    if (node) {
-      showFeedbackToast(`Select another component to connect from ${node.name}`);
-    }
-  };
-
-  const cancelConnectionCreation = () => {
-    if (isCreatingConnection) {
-      setIsCreatingConnection(false);
-      setConnectionStart(null);
-    }
-  };
-
-  const handleNodeClick = (nodeId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // If we're in connection creation mode
-    if (isCreatingConnection && connectionStart) {
-      // Don't connect to self
-      if (nodeId !== connectionStart) {
-        // Create the connection
-        const newConnection: Connection = {
-          id: `c${Date.now()}`,
-          sourceId: connectionStart,
-          targetId: nodeId,
-          label: 'uses'
-        };
-        
-        const updatedConnections = [...connections, newConnection];
-        setConnections(updatedConnections);
-        saveToHistory(nodes, updatedConnections);
-      }
-      
-      // Reset connection creation state
-      setIsCreatingConnection(false);
-      setConnectionStart(null);
-      
-      // Provide visual feedback
-      const sourceNode = nodes.find(n => n.id === connectionStart);
-      const targetNode = nodes.find(n => n.id === nodeId);
-      if (sourceNode && targetNode) {
-        showFeedbackToast(`Connected ${sourceNode.name} to ${targetNode.name}`);
-      }
-    } else {
-      // If not creating a connection, just select the node
-      setSelectedNode(nodeId === selectedNode ? null : nodeId);
-    }
-  };
-
-  const handleBackgroundClick = () => {
-    setSelectedNode(null);
-    setSelectedConnection(null);
-  };
-
-  const updateNodeCode = (nodeId: string, code: string) => {
-    const updatedNodes = nodes.map(node => {
-      if (node.id === nodeId) {
-        return { ...node, code };
-      }
-      return node;
-    });
-    
-    setNodes(updatedNodes);
-    saveToHistory(updatedNodes, connections);
-    
-    // Show feedback
-    setFeedbackMessage('Code updated successfully');
-    setShowFeedback(true);
-    setTimeout(() => setShowFeedback(false), 2000);
-  };
-
-  const updateNodeNotes = (nodeId: string, notes: string) => {
-    const updatedNodes = nodes.map(node => {
-      if (node.id === nodeId) {
-        return { ...node, notes };
-      }
-      return node;
-    });
-    
-    setNodes(updatedNodes);
-    saveToHistory(updatedNodes, connections);
-  };
-
-  // Find if mouse position is over any node
-  const findNodeAtPosition = (x: number, y: number) => {
-    // Check if position is within any node bounds (with some padding for connection points)
-    return nodes.find(node => {
-      const nodeLeft = node.position.x - 5;
-      const nodeRight = node.position.x + 205; // 200px width + 5px padding
-      const nodeTop = node.position.y - 5;
-      const nodeBottom = node.position.y + 105; // Approximate height + 5px padding
-      
-      return x >= nodeLeft && x <= nodeRight && y >= nodeTop && y <= nodeBottom;
-    });
-  };
-
-  const getNodeCenter = (nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return { x: 0, y: 0 };
-    
-    return {
-      x: node.position.x + 100,
-      y: node.position.y + 40
-    };
-  };
-
-  const deleteNode = (nodeId: string) => {
-    const newNodes = nodes.filter(node => node.id !== nodeId);
-    const newConnections = connections.filter(
-      connection => connection.sourceId !== nodeId && connection.targetId !== nodeId
-    );
-    
-    setNodes(newNodes);
-    setConnections(newConnections);
-    setSelectedNode(null);
-    saveToHistory(newNodes, newConnections);
-  };
-
-  const deleteConnection = (connectionId: string) => {
-    const newConnections = connections.filter(connection => connection.id !== connectionId);
-    setConnections(newConnections);
-    setSelectedConnection(null);
-    saveToHistory(nodes, newConnections);
-  };
-
-  const handleConnectionClick = (connectionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedConnection(connectionId);
-    setSelectedNode(null);
-  };
-
-  const toggleNodeExpand = (nodeId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpandedNode(expandedNode === nodeId ? null : nodeId);
-  };
-
-  const addNode = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNodeName.trim()) return;
-    
-    const newNode: ComponentNode = {
-      id: `n${Date.now()}`,
-      name: newNodeName,
-      position: { x: 200, y: 200 },
-      color: colors[newNodeType],
-      type: newNodeType,
-      code: '',
-      notes: ''
-    };
-    
-    const updatedNodes = [...nodes, newNode];
-    setNodes(updatedNodes);
-    setNewNodeName('');
-    saveToHistory(updatedNodes, connections);
-  };
-
+  // Helper function for feedback toasts
   const showFeedbackToast = (message: string) => {
     setFeedbackMessage(message);
     setShowFeedback(true);
     setTimeout(() => setShowFeedback(false), 3000);
   };
 
-  // Complete connection creation
-  const completeConnection = (e: React.MouseEvent) => {
-    if (!connectionStart) return;
-    
-    // Check if ended on a different node
-    if (editorRef.current) {
-      const rect = editorRef.current.getBoundingClientRect();
-      const canvasX = (e.clientX - rect.left - canvasOffset.x) / zoom;
-      const canvasY = (e.clientY - rect.top - canvasOffset.y) / zoom;
-      
-      const targetNode = findNodeAtPosition(canvasX, canvasY);
-      
-      if (targetNode && targetNode.id !== connectionStart) {
-        // Create the connection
-        const newConnection: Connection = {
-          id: `c${Date.now()}`,
-          sourceId: connectionStart,
-          targetId: targetNode.id,
-          label: "connects to"
-        };
-        
-        const newConnections = [...connections, newConnection];
-        setConnections(newConnections);
-        saveToHistory(nodes, newConnections);
-        showFeedbackToast('Connection created successfully');
-      }
-    }
-    
-    setConnectionStart(null);
-    setIsCreatingConnection(false);
-  };
-
-  // Save diagram to localStorage
-  const saveToLocalStorage = (showFeedback = true) => {
-    const diagramData = {
-      nodes,
-      connections,
-      name: currentDiagramName,
-      lastSaved: new Date().toISOString()
+  // Helper function to get node center for connections
+  const getNodeCenter = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return { x: 0, y: 0 };
+    return {
+      x: node.position.x + 100, // Half the node width (200/2)
+      y: node.position.y + 40   // Approximate vertical center
     };
-    
-    try {
-      // Save current diagram state
-      localStorage.setItem('beaUX-current-diagram', JSON.stringify(diagramData));
-      
-      if (showFeedback) {
-        showFeedbackToast('Diagram saved to browser storage');
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 2000);
-      }
-    } catch (err) {
-      console.error('Failed to save diagram:', err);
-      showFeedbackToast('Error saving diagram');
-    }
-  };
-
-  // Save diagram with a specific name
-  const saveDiagramAs = () => {
-    const diagramId = `diagram-${Date.now()}`;
-    const diagramData = {
-      id: diagramId,
-      nodes,
-      connections,
-      name: currentDiagramName,
-      lastSaved: new Date().toISOString()
-    };
-    
-    try {
-      // Add to saved diagrams list
-      const updatedDiagrams = [
-        ...savedDiagrams,
-        { id: diagramId, name: currentDiagramName, timestamp: Date.now() }
-      ];
-      localStorage.setItem('beaUX-saved-diagrams', JSON.stringify(updatedDiagrams));
-      
-      // Save diagram data
-      localStorage.setItem(`beaUX-diagram-${diagramId}`, JSON.stringify(diagramData));
-      
-      setSavedDiagrams(updatedDiagrams);
-      showFeedbackToast(`Diagram "${currentDiagramName}" saved`);
-      setIsSaveModalOpen(false);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    } catch (err) {
-      console.error('Failed to save diagram:', err);
-      showFeedbackToast('Error saving diagram');
-    }
-  };
-
-  // Load a saved diagram
-  const loadDiagram = (diagramId: string) => {
-    try {
-      const diagramData = localStorage.getItem(`beaUX-diagram-${diagramId}`);
-      if (diagramData) {
-        const parsed = JSON.parse(diagramData);
-        setNodes(parsed.nodes);
-        setConnections(parsed.connections);
-        setCurrentDiagramName(parsed.name);
-        saveToHistory(parsed.nodes, parsed.connections);
-        showFeedbackToast(`Diagram "${parsed.name}" loaded`);
-        setIsLoadModalOpen(false);
-      }
-    } catch (err) {
-      console.error('Failed to load diagram:', err);
-      showFeedbackToast('Error loading diagram');
-    }
   };
 
   // Delete a saved diagram
@@ -696,104 +142,370 @@ const DiagramEditor: React.FC = () => {
     }
   };
 
+  // Export diagram to JSON
+  const exportDiagramToJson = () => {
+    const diagramData = {
+      nodes,
+      connections,
+      name: currentDiagramName,
+      lastSaved: new Date().toISOString()
+    };
+    
+    try {
+      // Create a JSON string
+      const jsonString = JSON.stringify(diagramData, null, 2);
+      
+      // Create a blob and download link
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create and trigger download
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentDiagramName.replace(/\s+/g, '-').toLowerCase()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showFeedbackToast('Diagram exported to JSON');
+    } catch (err) {
+      console.error('Failed to export diagram:', err);
+      showFeedbackToast('Error exporting diagram');
+    }
+  };
+
+  // Import diagram from JSON
+  const importDiagramFromJson = () => {
+    try {
+      // Parse the JSON
+      const parsedData = JSON.parse(importJsonText);
+      
+      // Validate basic structure
+      if (!Array.isArray(parsedData.nodes) || !Array.isArray(parsedData.connections)) {
+        throw new Error('Invalid diagram format: missing nodes or connections arrays');
+      }
+      
+      // Optional: More detailed validation could be added here
+      
+      // Set the diagram data
+      setNodes(parsedData.nodes);
+      setConnections(parsedData.connections);
+      
+      // Set the diagram name if provided
+      if (parsedData.name) {
+        setCurrentDiagramName(parsedData.name);
+      }
+      
+      // Save to history
+      saveToHistory(parsedData.nodes, parsedData.connections);
+      
+      // Close modal and show feedback
+      setIsImportModalOpen(false);
+      setImportJsonText('');
+      setImportError(null);
+      showFeedbackToast('Diagram imported successfully');
+    } catch (err) {
+      console.error('Failed to import diagram:', err);
+      setImportError(`Error importing diagram: ${err instanceof Error ? err.message : 'Invalid JSON format'}`);
+    }
+  };
+
+  // Handle file upload for JSON import
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setImportJsonText(event.target.result as string);
+        setImportError(null);
+      }
+    };
+    reader.onerror = () => {
+      setImportError('Error reading file');
+    };
+    reader.readAsText(file);
+  };
+
+  // Sample data with tutorial content
+  const initialSampleData: { nodes: ComponentNode[], connections: Connection[] } = {
+    nodes: [
+      { 
+        id: 'welcome', 
+        name: 'Welcome to beaUX', 
+        position: { x: 350, y: 50 }, 
+        color: colors.page,
+        type: 'page',
+        code: '',
+        notes: 'This is an interactive diagram tool for mapping React component relationships. Start by adding components or importing JSON from AI.'
+      },
+      { 
+        id: 'add', 
+        name: 'Add Components', 
+        position: { x: 150, y: 200 }, 
+        color: colors.component,
+        type: 'component',
+        code: '',
+        notes: 'Use the Add Component form to create new nodes. You can choose between components, pages, hooks, and utilities.'
+      },
+      { 
+        id: 'connect', 
+        name: 'Create Connections', 
+        position: { x: 350, y: 200 }, 
+        color: colors.component,
+        type: 'component',
+        code: '',
+        notes: 'Click the arrow icon on a component to create connections between components. Connections represent relationships like "imports" or "uses".'
+      },
+      { 
+        id: 'import', 
+        name: 'AI Import', 
+        position: { x: 550, y: 200 }, 
+        color: colors.util,
+        type: 'util',
+        code: '',
+        notes: 'Click the JSON import button and use the AI prompt template to generate component diagrams automatically from your architecture description.'
+      },
+      { 
+        id: 'edit', 
+        name: 'Edit Details', 
+        position: { x: 250, y: 350 }, 
+        color: colors.hook,
+        type: 'hook',
+        code: '// Example component code\nfunction EditDetails() {\n  return (\n    <div>\n      <h2>Component Details</h2>\n      <p>This is an example component</p>\n    </div>\n  );\n}',
+        notes: 'Expand components to add code snippets and notes. This helps document your architecture.'
+      },
+      { 
+        id: 'save', 
+        name: 'Save & Export', 
+        position: { x: 450, y: 350 }, 
+        color: colors.hook,
+        type: 'hook',
+        code: '',
+        notes: 'Save your diagrams to browser storage or export as JSON to share with others.'
+      }
+    ],
+    connections: [
+      { id: 'c1', sourceId: 'welcome', targetId: 'add', label: 'start with' },
+      { id: 'c2', sourceId: 'welcome', targetId: 'connect', label: 'then' },
+      { id: 'c3', sourceId: 'welcome', targetId: 'import', label: 'or use' },
+      { id: 'c4', sourceId: 'add', targetId: 'edit', label: 'enables' },
+      { id: 'c5', sourceId: 'connect', targetId: 'save', label: 'leads to' },
+      { id: 'c6', sourceId: 'edit', targetId: 'save', label: 'before' }
+    ]
+  };
+
+  useEffect(() => {
+    // Load the saved diagrams list from localStorage
+    const savedDiagramsList = localStorage.getItem('beaUX-saved-diagrams');
+    if (savedDiagramsList) {
+      setSavedDiagrams(JSON.parse(savedDiagramsList));
+    }
+    
+    // Load the last edited diagram if it exists
+    const lastDiagram = localStorage.getItem('beaUX-current-diagram');
+    if (lastDiagram) {
+      try {
+        const parsed = JSON.parse(lastDiagram);
+        setNodes(parsed.nodes);
+        setConnections(parsed.connections);
+        setCurrentDiagramName(parsed.name || 'Tutorial Diagram');
+        saveToHistory(parsed.nodes, parsed.connections);
+        showFeedbackToast('Previous diagram loaded');
+      } catch (err) {
+        console.error('Failed to load saved diagram:', err);
+        // Fall back to tutorial diagram on error
+        setNodes(initialSampleData.nodes);
+        setConnections(initialSampleData.connections);
+        setCurrentDiagramName('Tutorial Diagram');
+        saveToHistory(initialSampleData.nodes, initialSampleData.connections);
+      }
+    } else {
+      // Use initial tutorial data if no saved diagram
+      setNodes(initialSampleData.nodes);
+      setConnections(initialSampleData.connections);
+      setCurrentDiagramName('Tutorial Diagram');
+      saveToHistory(initialSampleData.nodes, initialSampleData.connections);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col rounded-lg border border-border overflow-hidden bg-white">
       <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="font-medium">Component Diagram</h3>
-          <div className="flex items-center border border-border rounded-md bg-white">
-            <button 
-              onClick={() => setZoom(prev => Math.max(0.5, prev - 0.1))}
-              className="p-1 hover:bg-muted/50 border-r border-border"
-              title="Zoom out"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </button>
-            <span className="px-2 text-xs">{Math.round(zoom * 100)}%</span>
-            <button 
-              onClick={() => setZoom(prev => Math.min(2, prev + 0.1))}
-              className="p-1 hover:bg-muted/50 border-l border-border"
-              title="Zoom in"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </button>
-          </div>
-          
-          <button 
-            onClick={undo}
-            disabled={historyIndex <= 0}
-            className={`p-1 rounded-md ${historyIndex <= 0 ? 'text-muted-foreground/30' : 'hover:bg-muted/50 text-muted-foreground'}`}
-            title="Undo"
-          >
-            <Undo className="h-4 w-4" />
-          </button>
-          <button 
-            onClick={redo}
-            disabled={historyIndex >= history.length - 1}
-            className={`p-1 rounded-md ${historyIndex >= history.length - 1 ? 'text-muted-foreground/30' : 'hover:bg-muted/50 text-muted-foreground'}`}
-            title="Redo"
-          >
-            <Redo className="h-4 w-4" />
-          </button>
-          
-          <button 
-            className={`flex items-center gap-1 text-xs ${
-              isPanMode 
-                ? 'bg-blue-100 border-blue-300 text-blue-700' 
-                : 'bg-white border-border text-foreground'
-            } border rounded-md px-2 py-1 hover:bg-muted/30`}
-            title={isPanMode ? "Exit pan mode" : "Enter pan mode"}
-            onClick={() => setIsPanMode(!isPanMode)}
-          >
-            <Move className="h-3 w-3" />
-            <span>{isPanMode ? "Exit Pan" : "Pan"}</span>
-          </button>
+        <div className="flex items-center space-x-2">
+          <input
+            type="text"
+            value={currentDiagramName}
+            onChange={(e) => setCurrentDiagramName(e.target.value)}
+            className="font-medium text-sm rounded border border-transparent hover:border-border focus:border-border px-2 py-1 focus:outline-none"
+          />
         </div>
         
-        <div className="flex items-center gap-2">
-          <form className="flex items-center" onSubmit={addNode}>
-            <input
-              type="text"
-              value={newNodeName}
-              onChange={(e) => setNewNodeName(e.target.value)}
-              placeholder="Component name"
-              className="text-sm border border-border rounded-l-md px-2 py-1 w-32"
-            />
-            <select
-              value={newNodeType}
-              onChange={(e) => setNewNodeType(e.target.value as ComponentNode['type'])}
-              className="text-sm border-y border-r border-border rounded-r-md px-2 py-1 bg-white"
-            >
-              <option value="component">Component</option>
-              <option value="page">Page</option>
-              <option value="hook">Hook</option>
-              <option value="util">Utility</option>
-            </select>
-            <button 
-              type="submit"
-              className="ml-2 flex items-center gap-1 text-xs bg-primary text-white rounded-md px-2 py-1 hover:bg-primary/90"
-            >
-              <Plus className="h-3 w-3" />
-              <span>Add</span>
-            </button>
-          </form>
+        <div className="flex items-center gap-1">
+          {/* Undo/Redo */}
+          <button 
+            onClick={() => {
+              if (historyIndex > 0) {
+                const newIndex = historyIndex - 1;
+                const prevState = history[newIndex];
+                setNodes(prevState.nodes);
+                setConnections(prevState.connections);
+                setHistoryIndex(newIndex);
+              }
+            }} 
+            disabled={historyIndex <= 0}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+            title="Undo"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={() => {
+              if (historyIndex < history.length - 1) {
+                const newIndex = historyIndex + 1;
+                const nextState = history[newIndex];
+                setNodes(nextState.nodes);
+                setConnections(nextState.connections);
+                setHistoryIndex(newIndex);
+              }
+            }}
+            disabled={historyIndex >= history.length - 1}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+            title="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
+          </button>
+          
+          <div className="h-4 mx-1 border-r border-border" />
+          
+          {/* Pan Mode Toggle */}
+          <button 
+            onClick={() => setIsPanMode(!isPanMode)}
+            className={`p-1.5 rounded ${isPanMode ? 'bg-muted text-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'}`}
+            title="Toggle Pan Mode"
+          >
+            {isPanMode ? <Hand className="h-4 w-4" /> : <MousePointer className="h-4 w-4" />}
+          </button>
+          
+          {/* Zoom Controls */}
+          <button 
+            onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Zoom In"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.5))}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Zoom Out"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </button>
+          
+          <div className="h-4 mx-1 border-r border-border" />
+          
+          {/* Save/Load */}
+          <button 
+            onClick={() => setIsSaveModalOpen(true)}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Save Diagram"
+          >
+            <Save className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={() => setIsLoadModalOpen(true)}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Load Diagram"
+          >
+            <FileCog className="h-4 w-4" />
+          </button>
+          
+          {/* Import/Export */}
+          <button 
+            onClick={() => setIsImportModalOpen(true)}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Import JSON"
+          >
+            <FileJson className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={exportDiagramToJson}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Export to JSON"
+          >
+            <Download className="h-4 w-4" />
+          </button>
         </div>
       </div>
       
+      {/* Canvas and Sidebar */}
       <div className="flex flex-1 min-h-0">
+        {/* Sidebar */}
         <div className="border-r border-border w-60 overflow-y-auto p-2 bg-white">
-          <h4 className="font-medium text-sm mb-2">Components</h4>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-medium text-sm">Components</h4>
+            
+            <form className="flex items-center" onSubmit={(e) => {
+              e.preventDefault();
+              if (!newNodeName.trim()) return;
+              
+              const newNode: ComponentNode = {
+                id: `n${Date.now()}`,
+                name: newNodeName,
+                position: { x: 200, y: 200 },
+                color: colors[newNodeType],
+                type: newNodeType,
+                code: '',
+                notes: ''
+              };
+              
+              const updatedNodes = [...nodes, newNode];
+              setNodes(updatedNodes);
+              setNewNodeName('');
+              saveToHistory(updatedNodes, connections);
+            }}>
+              <input
+                type="text"
+                value={newNodeName}
+                onChange={(e) => setNewNodeName(e.target.value)}
+                placeholder="New component"
+                className="text-xs border border-border rounded-l-md px-2 py-1 w-24"
+              />
+              <select
+                value={newNodeType}
+                onChange={(e) => setNewNodeType(e.target.value as ComponentNode['type'])}
+                className="text-xs border-y border-r border-border rounded-r-md px-1 py-1 bg-white"
+              >
+                <option value="component">Component</option>
+                <option value="page">Page</option>
+                <option value="hook">Hook</option>
+                <option value="util">Utility</option>
+              </select>
+              <button 
+                type="submit"
+                className="ml-1 bg-primary text-white rounded-md p-1 hover:bg-primary/90"
+                title="Add component"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </form>
+          </div>
+          
           <div className="space-y-1">
             {nodes.map(node => (
               <div
                 key={node.id}
                 className={`flex items-center justify-between p-2 rounded-md text-xs ${
                   selectedNode === node.id 
-                    ? connectionStart === node.id
-                      ? 'bg-muted border border-input' 
-                      : 'border-primary shadow-md' 
+                    ? 'bg-blue-50 border border-blue-200' 
                     : 'hover:bg-muted/50'
-                } ${connectionStart === node.id ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+                }`}
+                onClick={() => setSelectedNode(node.id === selectedNode ? null : node.id)}
               >
                 <div className="flex items-center gap-1">
                   <span 
@@ -806,12 +518,37 @@ const DiagramEditor: React.FC = () => {
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteNode(node.id);
+                      // Create connection from this node
+                      setSelectedNode(node.id);
+                      setConnectionStart(node.id);
+                      setIsCreatingConnection(true);
+                      
+                      // Show visual feedback
+                      showFeedbackToast(`Select another component to connect from ${node.name}`);
                     }}
-                    className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                    className="p-1 rounded-md hover:bg-blue-100 text-blue-600 mr-1"
+                    title="Create connection"
+                  >
+                    <ChevronRight className="h-3 w-3" />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Filter nodes and connections that don't involve this node
+                      const newNodes = nodes.filter(n => n.id !== node.id);
+                      const newConnections = connections.filter(
+                        c => c.sourceId !== node.id && c.targetId !== node.id
+                      );
+                      
+                      setNodes(newNodes);
+                      setConnections(newConnections);
+                      setSelectedNode(null);
+                      saveToHistory(newNodes, newConnections);
+                    }}
+                    className="p-1 rounded-md hover:bg-red-100 text-red-600"
                     title="Delete component"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash className="h-3 w-3" />
                   </button>
                 </div>
               </div>
@@ -819,9 +556,10 @@ const DiagramEditor: React.FC = () => {
           </div>
         </div>
         
+        {/* Canvas */}
         <div 
           ref={editorRef}
-          className={`relative flex-1 h-[400px] overflow-hidden bg-[#f8fafc] bg-grid-pattern ${
+          className={`relative flex-1 h-[500px] overflow-hidden ${
             isPanMode 
               ? 'cursor-grab' 
               : isDraggingCanvas.current 
@@ -829,35 +567,158 @@ const DiagramEditor: React.FC = () => {
                 : 'cursor-default'
           }`}
           style={{ 
-            backgroundSize: `${20 * zoom}px ${20 * zoom}px`
+            backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
+            backgroundImage: `
+              radial-gradient(circle at 30% 20%, rgba(20, 0, 40, 0.2) 0%, transparent 20%),
+              radial-gradient(circle at 70% 60%, rgba(10, 10, 50, 0.15) 0%, transparent 30%),
+              radial-gradient(circle at 10% 80%, rgba(30, 5, 50, 0.1) 0%, transparent 30%),
+              radial-gradient(circle at 80% 15%, rgba(15, 0, 30, 0.15) 0%, transparent 40%)
+            `,
+            backgroundColor: '#000005',
+            boxShadow: 'inset 0 0 80px rgba(30, 0, 60, 0.1)'
           }}
-          onClick={handleBackgroundClick}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
+          onMouseDown={(e) => {
+            // When in pan mode or clicking directly on the canvas background
+            if (isPanMode || e.target === e.currentTarget) {
+              isDraggingCanvas.current = true;
+              lastMousePosition.current = { x: e.clientX, y: e.clientY };
+              
+              // Change cursor style to indicate grabbing
+              if (editorRef.current) {
+                editorRef.current.style.cursor = 'grabbing';
+              }
+            }
+            
+            // Clear selection when clicking on empty canvas area
+            if (e.target === e.currentTarget) {
+              setSelectedNode(null);
+              setSelectedConnection(null);
+            }
+          }}
+          onMouseMove={(e) => {
+            // Handle canvas dragging
+            if (isDraggingCanvas.current) {
+              e.preventDefault();
+              const dx = e.clientX - lastMousePosition.current.x;
+              const dy = e.clientY - lastMousePosition.current.y;
+              
+              setCanvasOffset(prev => ({
+                x: prev.x + dx,
+                y: prev.y + dy
+              }));
+              
+              lastMousePosition.current = { x: e.clientX, y: e.clientY };
+              return;
+            }
+            
+            // Handle node dragging
+            if (isDragging.current && selectedNode && editorRef.current) {
+              e.preventDefault(); // Prevent text selection during drag
+              const rect = editorRef.current.getBoundingClientRect();
+              
+              const newX = (e.clientX - rect.left - dragOffset.current.x - canvasOffset.x) / zoom;
+              const newY = (e.clientY - rect.top - dragOffset.current.y - canvasOffset.y) / zoom;
+              
+              setNodes(prevNodes => prevNodes.map(node => {
+                if (node.id === selectedNode) {
+                  return {
+                    ...node,
+                    position: { x: newX, y: newY }
+                  };
+                }
+                return node;
+              }));
+            }
+            
+            // Update mouse position for connection preview
+            if (editorRef.current) {
+              const rect = editorRef.current.getBoundingClientRect();
+              const x = (e.clientX - rect.left - canvasOffset.x) / zoom;
+              const y = (e.clientY - rect.top - canvasOffset.y) / zoom;
+              setMousePosition({ x, y });
+            }
+          }}
+          onMouseUp={(e) => {
+            // End canvas dragging
+            if (isDraggingCanvas.current) {
+              isDraggingCanvas.current = false;
+              if (editorRef.current) {
+                editorRef.current.style.cursor = isPanMode ? 'grab' : 'default';
+              }
+            }
+            
+            // Handle node drag end
+            if (isDragging.current && selectedNode) {
+              isDragging.current = false;
+              saveToHistory(nodes, connections);
+            }
+            
+            // Handle connection completion
+            if (connectionStart && isCreatingConnection) {
+              // Check if ended on a node
+              if (editorRef.current) {
+                const rect = editorRef.current.getBoundingClientRect();
+                const canvasX = (e.clientX - rect.left - canvasOffset.x) / zoom;
+                const canvasY = (e.clientY - rect.top - canvasOffset.y) / zoom;
+                
+                // Find if mouse is over any node
+                const targetNode = nodes.find(node => {
+                  const nodeLeft = node.position.x - 5;
+                  const nodeRight = node.position.x + 205; // 200px width + 5px padding
+                  const nodeTop = node.position.y - 5;
+                  const nodeBottom = node.position.y + 105; // Approximate height + 5px padding
+                  
+                  return canvasX >= nodeLeft && canvasX <= nodeRight && 
+                         canvasY >= nodeTop && canvasY <= nodeBottom;
+                });
+                
+                if (targetNode && targetNode.id !== connectionStart) {
+                  // Create the connection
+                  const newConnection: Connection = {
+                    id: `c${Date.now()}`,
+                    sourceId: connectionStart,
+                    targetId: targetNode.id,
+                    label: "uses"
+                  };
+                  
+                  const newConnections = [...connections, newConnection];
+                  setConnections(newConnections);
+                  saveToHistory(nodes, newConnections);
+                  showFeedbackToast('Connection created successfully');
+                }
+              }
+              
+              setConnectionStart(null);
+              setIsCreatingConnection(false);
+            }
+          }}
         >
-          {/* Overlay notifications */}
+          {/* Connection creation indicator */}
           {isCreatingConnection && (
-            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md z-50 text-sm flex items-center gap-2">
-              <span>Click on another component to connect</span>
+            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md z-50 text-xs">
+              Click on another component to connect
               <button 
-                onClick={cancelConnectionCreation}
-                className="bg-blue-600 hover:bg-blue-700 rounded-md px-2 py-0.5 text-xs"
+                onClick={() => {
+                  setConnectionStart(null);
+                  setIsCreatingConnection(false);
+                }}
+                className="ml-2 bg-blue-600 hover:bg-blue-700 rounded px-2 py-0.5"
               >
                 Cancel
               </button>
             </div>
           )}
           
+          {/* Feedback toast */}
           {showFeedback && (
-            <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-md z-50 text-sm">
+            <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-md z-50 text-xs">
               {feedbackMessage}
             </div>
           )}
 
-          {/* Canvas Content */}
+          {/* Main canvas content */}
           <div 
-            className="absolute inset-0" 
+            className="absolute inset-0 pointer-events-none" 
             style={{ 
               transform: `scale(${zoom})`, 
               transformOrigin: '0 0',
@@ -865,31 +726,91 @@ const DiagramEditor: React.FC = () => {
               top: `${canvasOffset.y}px`
             }}
           >
+            {/* Stars */}
+            <div className="stars-small"></div>
+            <div className="stars-medium"></div>
+            <div className="stars-large"></div>
+            
             {/* Connections Layer */}
-            <svg className="absolute inset-0 w-full h-full">
-              {connections.map((connection) => {
-                const { path, angle } = calculateConnectionPath(
-                  connection.sourceId,
-                  connection.targetId
-                );
+            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+              {/* Live connection preview */}
+              {isCreatingConnection && connectionStart && (
+                <path
+                  d={`M ${getNodeCenter(connectionStart).x} ${getNodeCenter(connectionStart).y} L ${mousePosition.x} ${mousePosition.y}`}
+                  stroke="#2dd4bf"
+                  strokeWidth={2}
+                  strokeDasharray="5,5"
+                  fill="none"
+                />
+              )}
+              
+              {/* Existing connections */}
+              {connections.map(connection => {
+                // Calculate path between two nodes
+                const sourceNode = nodes.find(n => n.id === connection.sourceId);
+                const targetNode = nodes.find(n => n.id === connection.targetId);
+                
+                if (!sourceNode || !targetNode) return null;
+                
+                // Get centers of nodes
+                const sourceCenter = { 
+                  x: sourceNode.position.x + 100, 
+                  y: sourceNode.position.y + 40 
+                };
+                const targetCenter = { 
+                  x: targetNode.position.x + 100, 
+                  y: targetNode.position.y + 40 
+                };
+                
+                // Calculate the path
+                const dx = targetCenter.x - sourceCenter.x;
+                const dy = targetCenter.y - sourceCenter.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                
+                // Calculate control points for a curved path (for quadratic bezier)
+                const controlPointOffset = Math.min(80, length / 3);
+                
+                // Calculate the angle to offset the control point perpendicular to the line
+                const angle = Math.atan2(dy, dx) + Math.PI / 2;
+                const offsetX = controlPointOffset * Math.cos(angle);
+                const offsetY = controlPointOffset * Math.sin(angle);
+                
+                // Calculate the midpoint with offset for the control point
+                const midX = (sourceCenter.x + targetCenter.x) / 2 + offsetX;
+                const midY = (sourceCenter.y + targetCenter.y) / 2 + offsetY;
+                
+                // Calculate the path and angle for arrow
+                const path = `M ${sourceCenter.x} ${sourceCenter.y} Q ${midX} ${midY} ${targetCenter.x} ${targetCenter.y}`;
+                const arrowAngle = Math.atan2(targetCenter.y - midY, targetCenter.x - midX) * 180 / Math.PI;
                 
                 return (
-                  <g key={connection.id}>
+                  <g key={connection.id} className="pointer-events-auto">
                     <path
                       d={path}
                       fill="none"
-                      stroke={selectedConnection === connection.id ? '#3b82f6' : '#94a3b8'}
+                      stroke={selectedConnection === connection.id ? '#2dd4bf' : '#94a3b8'}
                       strokeWidth={selectedConnection === connection.id ? 3 : 2}
-                      onClick={(e) => handleConnectionClick(connection.id, e)}
-                      className="cursor-pointer"
+                      className={`${selectedConnection === connection.id ? 'glow-connection-teal' : ''}`}
+                      onClick={() => setSelectedConnection(connection.id)}
                     />
                     <path
                       d="M 0,0 L -8,-4 L -8,4 Z"
-                      fill={selectedConnection === connection.id ? '#3b82f6' : '#94a3b8'}
-                      transform={`translate(${getNodeCenter(connection.targetId).x},${getNodeCenter(connection.targetId).y}) rotate(${angle})`}
-                      onClick={(e) => handleConnectionClick(connection.id, e)}
+                      fill={selectedConnection === connection.id ? '#2dd4bf' : '#94a3b8'}
+                      transform={`translate(${targetCenter.x},${targetCenter.y}) rotate(${arrowAngle})`}
+                      onClick={() => setSelectedConnection(connection.id)}
                       className="cursor-pointer"
                     />
+                    {/* Connection label */}
+                    <text
+                      x={midX}
+                      y={midY - 10}
+                      fill={selectedConnection === connection.id ? '#5eead4' : '#e2e8f0'}
+                      fontSize="10"
+                      textAnchor="middle"
+                      className="pointer-events-none select-none space-text"
+                    >
+                      {connection.label}
+                    </text>
                   </g>
                 );
               })}
@@ -899,106 +820,132 @@ const DiagramEditor: React.FC = () => {
             {nodes.map(node => (
               <div
                 key={node.id}
-                className={`absolute cursor-pointer rounded-md border ${
+                className={`absolute pointer-events-auto cursor-pointer rounded-md border galaxy-node ${
                   selectedNode === node.id 
                     ? connectionStart === node.id
-                      ? 'border-blue-500 shadow-md bg-blue-50'
-                      : 'border-primary shadow-md' 
-                    : 'border-border shadow-sm'
-                } ${connectionStart === node.id ? 'ring-2 ring-blue-500 ring-opacity-50' : ''} bg-white p-3 w-[200px]`}
+                      ? 'border-teal-400 shadow-glow-teal bg-black/90'
+                      : 'border-teal-400 shadow-glow-teal' 
+                    : 'border-gray-800 shadow-space'
+                } ${connectionStart === node.id ? 'ring-2 ring-teal-500 ring-opacity-70' : ''} bg-black/85 backdrop-blur-sm p-3 w-[200px]`}
                 style={{
                   left: `${node.position.x}px`,
                   top: `${node.position.y}px`,
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleNodeClick(node.id, e);
+                  
+                  // If we're in connection creation mode
+                  if (isCreatingConnection && connectionStart) {
+                    // Don't connect to self
+                    if (node.id !== connectionStart) {
+                      // Create the connection
+                      const newConnection: Connection = {
+                        id: `c${Date.now()}`,
+                        sourceId: connectionStart,
+                        targetId: node.id,
+                        label: 'uses'
+                      };
+                      
+                      const updatedConnections = [...connections, newConnection];
+                      setConnections(updatedConnections);
+                      saveToHistory(nodes, updatedConnections);
+                      
+                      // Provide visual feedback
+                      const sourceNode = nodes.find(n => n.id === connectionStart);
+                      if (sourceNode) {
+                        showFeedbackToast(`Connected ${sourceNode.name} to ${node.name}`);
+                      }
+                    }
+                    
+                    // Reset connection creation state
+                    setIsCreatingConnection(false);
+                    setConnectionStart(null);
+                  } else {
+                    // If not creating a connection, just select the node
+                    setSelectedNode(node.id === selectedNode ? null : node.id);
+                    setSelectedConnection(null);
+                  }
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation(); // Prevent canvas drag when clicking on node
-                  handleNodeMouseDown(node.id, e);
+                  
+                  // Start dragging the node
+                  if (!isCreatingConnection && editorRef.current) {
+                    isDragging.current = true;
+                    const rect = editorRef.current.getBoundingClientRect();
+                    
+                    dragOffset.current = {
+                      x: e.clientX - (node.position.x * zoom + rect.left + canvasOffset.x),
+                      y: e.clientY - (node.position.y * zoom + rect.top + canvasOffset.y)
+                    };
+                  }
                 }}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5">
                     <span 
                       className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: node.color }}
+                      style={{ backgroundColor: node.color || '#2dd4bf' }}
                     ></span>
-                    <h4 className="font-medium text-sm">{node.name}</h4>
+                    <h4 className="font-medium text-sm text-gray-100">{node.name}</h4>
                   </div>
                   <div className="flex">
-                    {!isCreatingConnection && (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startConnectionCreation(node.id);
-                        }}
-                        className="p-1 mr-1 rounded-md hover:bg-blue-100 text-blue-600"
-                        title="Create connection from this component"
-                      >
-                        <ArrowRightCircle className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    <button 
-                      onClick={(e) => toggleNodeExpand(node.id, e)}
-                      className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-                      title={expandedNode === node.id ? "Hide code" : "Show code"}
-                    >
-                      {expandedNode === node.id ? (
-                        <ChevronUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      )}
-                    </button>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteNode(node.id);
+                        setExpandedNode(expandedNode === node.id ? null : node.id);
                       }}
-                      className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-                      title="Delete component"
+                      className="p-1 rounded-md hover:bg-indigo-800/50 text-gray-300"
+                      title={expandedNode === node.id ? "Collapse" : "Expand"}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <ChevronRight className={`h-3.5 w-3.5 transform transition-transform ${
+                        expandedNode === node.id ? 'rotate-90' : ''
+                      }`} />
                     </button>
                   </div>
                 </div>
                 
-                {/* Component Code (Collapsible & Editable) */}
+                {/* Component expanded details (notes & code) */}
                 {expandedNode === node.id && (
-                  <div className="mt-2 border-t pt-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[10px] font-medium text-muted-foreground">Component Code:</label>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const codeElement = document.getElementById(`code-${node.id}`) as HTMLTextAreaElement;
-                          if (codeElement) {
-                            updateNodeCode(node.id, codeElement.value);
-                          }
-                        }}
-                        className="p-1 rounded-md hover:bg-blue-100 text-blue-600"
-                        title="Save code changes"
-                      >
-                        <Save className="h-3 w-3" />
-                      </button>
-                    </div>
+                  <div className="mt-2 border-t border-gray-800/50 pt-2">
                     <textarea
-                      id={`code-${node.id}`}
-                      className="w-full h-24 text-[10px] bg-gray-50 p-2 rounded-sm overflow-x-auto font-mono border border-gray-200 resize-none"
-                      defaultValue={node.code}
+                      className="w-full h-20 text-xs bg-black/90 p-2 rounded-sm border border-gray-800/50 resize-none text-gray-200"
+                      value={node.notes}
+                      onChange={(e) => {
+                        const updatedNodes = nodes.map(n => {
+                          if (n.id === node.id) {
+                            return { ...n, notes: e.target.value };
+                          }
+                          return n;
+                        });
+                        
+                        setNodes(updatedNodes);
+                      }}
+                      onBlur={() => saveToHistory(nodes, connections)}
+                      placeholder="Add notes about this component..."
                       onClick={(e) => e.stopPropagation()}
-                      placeholder="// Enter component code here..."
                     ></textarea>
                     
                     <div className="mt-2">
-                      <label className="text-[10px] font-medium text-muted-foreground block mb-1">Notes:</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-medium text-gray-300">Component Code:</label>
+                      </div>
                       <textarea
-                        className="w-full h-16 text-[10px] bg-gray-50 p-2 rounded-sm overflow-x-auto border border-gray-200 resize-none"
-                        defaultValue={node.notes}
+                        className="w-full h-24 text-[10px] bg-black/90 p-2 rounded-sm font-mono border border-gray-800/50 resize-none text-gray-200"
+                        value={node.code}
+                        onChange={(e) => {
+                          const updatedNodes = nodes.map(n => {
+                            if (n.id === node.id) {
+                              return { ...n, code: e.target.value };
+                            }
+                            return n;
+                          });
+                          
+                          setNodes(updatedNodes);
+                        }}
+                        onBlur={() => saveToHistory(nodes, connections)}
+                        placeholder="// Enter component code here..."
                         onClick={(e) => e.stopPropagation()}
-                        onBlur={(e) => updateNodeNotes(node.id, e.target.value)}
-                        placeholder="Add notes about this component..."
                       ></textarea>
                     </div>
                   </div>
@@ -1009,156 +956,84 @@ const DiagramEditor: React.FC = () => {
         </div>
       </div>
       
-      <div className="p-2 border-t border-border bg-muted/30">
-        <div className="text-xs text-muted-foreground">
-          <span className="font-medium mr-1">To connect components:</span> 
-          <span>
-            1) Click the connection icon <ArrowRightCircle className="inline h-3 w-3" /> on a component
-            2) Then click on another component to create a connection
-          </span>
-        </div>
-        <div className="mt-1 flex items-center gap-3 text-xs">
-          <div className="flex items-center gap-1">
-            <span className="inline-block w-4 h-0.5 bg-blue-500"></span>
-            <span>Connection</span>
-          </div>
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-2">
-        <button 
-          className={`flex items-center gap-1 text-xs bg-white border border-border rounded-md px-2 py-1 hover:bg-muted/30`}
-          title="Zoom in"
-          onClick={() => setZoom(prev => Math.max(0.5, prev - 0.1))}
-        >
-          <ZoomIn className="h-3 w-3" />
-        </button>
-        <span className="text-xs font-mono w-12 text-center">{Math.round(zoom * 100)}%</span>
-        <button 
-          className={`flex items-center gap-1 text-xs bg-white border border-border rounded-md px-2 py-1 hover:bg-muted/30`}
-          title="Zoom out"
-          onClick={() => setZoom(prev => Math.min(2, prev + 0.1))}
-        >
-          <ZoomOut className="h-3 w-3" />
-        </button>
-        
-        <button 
-          className={`flex items-center gap-1 text-xs ${
-            isPanMode 
-              ? 'bg-blue-100 border-blue-300 text-blue-700' 
-              : 'bg-white border-border text-foreground'
-          } border rounded-md px-2 py-1 hover:bg-muted/30`}
-          title={isPanMode ? "Exit pan mode" : "Enter pan mode"}
-          onClick={() => setIsPanMode(!isPanMode)}
-        >
-          <Move className="h-3 w-3" />
-          <span>{isPanMode ? "Exit Pan" : "Pan"}</span>
-        </button>
-
-        <div className="border-l border-border h-5 mx-1"></div>
-        
-        <button 
-          className={`flex items-center gap-1 text-xs ${saveSuccess ? 'bg-green-100 text-green-700 border-green-300' : 'bg-white border-border'} rounded-md px-2 py-1 hover:bg-muted/30`}
-          title="Save diagram"
-          onClick={() => saveToLocalStorage()}
-        >
-          <Save className="h-3 w-3" />
-          <span>{saveSuccess ? 'Saved!' : 'Save'}</span>
-        </button>
-        
-        <button 
-          className="flex items-center gap-1 text-xs bg-white border border-border rounded-md px-2 py-1 hover:bg-muted/30"
-          title="Save As..."
-          onClick={() => setIsSaveModalOpen(true)}
-        >
-          <FilePlus className="h-3 w-3" />
-          <span>Save As...</span>
-        </button>
-
-        <button 
-          className="flex items-center gap-1 text-xs bg-white border border-border rounded-md px-2 py-1 hover:bg-muted/30"
-          title="Load diagram"
-          onClick={() => setIsLoadModalOpen(true)}
-        >
-          <FolderOpen className="h-3 w-3" />
-          <span>Load</span>
-        </button>
-      </div>
-
-      {/* Modals for saving and loading */}
-      {isSaveModalOpen && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-4 w-96 max-w-full">
-            <h3 className="text-lg font-semibold mb-3">Save Diagram</h3>
-            <div className="mb-4">
-              <label className="block text-sm mb-1">Diagram Name</label>
-              <input
-                type="text"
-                value={currentDiagramName}
-                onChange={(e) => setCurrentDiagramName(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md"
-                placeholder="My Diagram"
-              />
+      {/* Import JSON Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-20">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="font-semibold">Import Diagram from JSON</h3>
+              <button onClick={() => {
+                setIsImportModalOpen(false);
+                setImportJsonText('');
+                setImportError(null);
+              }} className="hover:bg-muted rounded p-1">
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <div className="flex justify-end gap-2">
-              <button
-                className="px-4 py-2 border border-border rounded-md"
-                onClick={() => setIsSaveModalOpen(false)}
+            
+            <div className="p-4 flex-1 overflow-auto">
+              <p className="text-sm text-muted-foreground mb-4">
+                Paste your diagram JSON below or upload a JSON file. 
+                <a 
+                  href="#" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // Copy the AI prompt to clipboard
+                    navigator.clipboard.writeText(aiPromptTemplate)
+                      .then(() => showFeedbackToast('AI prompt copied to clipboard'))
+                      .catch(err => console.error('Failed to copy: ', err));
+                  }}
+                  className="ml-1 text-blue-600 hover:underline"
+                >
+                  Copy AI prompt template
+                </a>
+              </p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Upload JSON File</label>
+                <input 
+                  type="file" 
+                  accept=".json" 
+                  onChange={handleFileUpload}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-muted file:text-foreground hover:file:bg-muted/80"
+                />
+              </div>
+              
+              <label className="block text-sm font-medium mb-2">JSON Content</label>
+              <textarea
+                value={importJsonText}
+                onChange={(e) => {
+                  setImportJsonText(e.target.value);
+                  setImportError(null);
+                }}
+                placeholder="Paste your diagram JSON here..."
+                className="w-full h-64 border rounded p-2 font-mono text-sm resize-none"
+              />
+              
+              {importError && (
+                <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                  {importError}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button 
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setImportJsonText('');
+                  setImportError(null);
+                }}
+                className="px-3 py-2 rounded text-sm bg-muted/50 hover:bg-muted text-foreground"
               >
                 Cancel
               </button>
-              <button
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
-                onClick={saveDiagramAs}
+              <button 
+                onClick={importDiagramFromJson}
+                disabled={!importJsonText.trim()}
+                className="px-3 py-2 rounded text-sm bg-primary/90 hover:bg-primary text-primary-foreground disabled:opacity-50 disabled:pointer-events-none"
               >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {isLoadModalOpen && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-4 w-96 max-w-full">
-            <h3 className="text-lg font-semibold mb-3">Load Diagram</h3>
-            
-            {savedDiagrams.length === 0 ? (
-              <p className="text-sm text-muted-foreground my-6 text-center">
-                No saved diagrams found.
-              </p>
-            ) : (
-              <div className="max-h-60 overflow-y-auto mb-4">
-                {savedDiagrams.map(diagram => (
-                  <div 
-                    key={diagram.id}
-                    className="flex items-center justify-between p-2 hover:bg-muted/30 rounded-md cursor-pointer"
-                    onClick={() => loadDiagram(diagram.id)}
-                  >
-                    <div>
-                      <div className="font-medium">{diagram.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(diagram.timestamp).toLocaleString()}
-                      </div>
-                    </div>
-                    <button
-                      className="p-1 hover:bg-muted rounded-md"
-                      onClick={(e) => deleteDiagram(diagram.id, e)}
-                      title="Delete diagram"
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <div className="flex justify-end">
-              <button
-                className="px-4 py-2 border border-border rounded-md"
-                onClick={() => setIsLoadModalOpen(false)}
-              >
-                Close
+                Import Diagram
               </button>
             </div>
           </div>
@@ -1167,5 +1042,54 @@ const DiagramEditor: React.FC = () => {
     </div>
   );
 };
+
+// AI prompt template for generating diagram JSON
+const aiPromptTemplate = `# beaUX Diagram Generation Prompt
+
+I need you to analyze my React component architecture and generate a JSON representation for the beaUX diagram tool. The output should follow this exact format:
+
+\`\`\`json
+{
+  "nodes": [
+    {
+      "id": "string",
+      "name": "ComponentName", 
+      "position": { "x": number, "y": number },
+      "color": "color-hex-code",
+      "type": "component|page|hook|util",
+      "code": "component-code-snippet",
+      "notes": "description-or-notes"
+    }
+  ],
+  "connections": [
+    {
+      "id": "string",
+      "sourceId": "node-id-that-imports",
+      "targetId": "node-id-being-imported",
+      "label": "relationship-description"
+    }
+  ],
+  "name": "Diagram Name"
+}
+\`\`\`
+
+## Instructions
+
+1. Analyze the component hierarchy I provide
+2. Create nodes for each component, page, hook, or utility
+3. Establish connections based on import/usage relationships
+4. Position nodes logically (x, y coordinates between 50-800)
+5. Assign appropriate colors:
+   - Components: #3b82f6 (blue)
+   - Pages: #10b981 (green)
+   - Hooks: #8b5cf6 (purple)
+   - Utils: #f59e0b (amber)
+6. Include brief code snippets and notes
+
+## My Component Architecture
+
+[Describe your component architecture here, starting with the root component and the key relationships]
+
+Provide ONLY the JSON output in the exact format specified, with no additional explanations.`;
 
 export default DiagramEditor;
