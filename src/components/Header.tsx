@@ -1,89 +1,74 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
 
 interface HeaderProps {
   className?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({ className }) => {
-  const location = useLocation();
-  const isReactWebPage = location.pathname === '/react-web';
+  // Rotating text animation
+  const rotatingWords = ["supercharges", "organizes", "empowers"];
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(true);
+  const [activeSection, setActiveSection] = useState('diagram');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsAnimating(false);
+      setTimeout(() => {
+        setCurrentWordIndex((prevIndex) => (prevIndex + 1) % rotatingWords.length);
+        setIsAnimating(true);
+      }, 500); // Wait for fade out before changing word
+    }, 3000); // Change word every 3 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Handle scroll to section
+  const scrollToSection = (sectionId: string) => {
+    setActiveSection(sectionId);
+    setIsMenuOpen(false); // Close menu after selection
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
   
   return (
     <header className={cn(
-      "w-full py-4 px-8 flex items-center justify-between border-b border-border/60",
+      "w-full py-4 px-6 flex items-center justify-between border-b border-border/60",
       "backdrop-blur-sm bg-background/70 supports-[backdrop-filter]:bg-background/60",
-      "transition-all duration-200 ease-in-out z-50",
+      "transition-all duration-200 ease-in-out z-50 sticky top-0",
       className
     )}>
-      <div className="flex items-center gap-6">
-        {/* beaUX Logo */}
-        <div className="flex items-center">
-          <Link to="/" className="flex items-center">
-            <svg 
-              width="40" 
-              height="40" 
-              viewBox="0 0 200 200" 
-              fill="none" 
-              xmlns="http://www.w3.org/2000/svg"
-              className="mr-2"
-            >
-              {/* Simplified phone body with more elegant proportions */}
-              <rect 
-                x="40" 
-                y="20" 
-                width="120" 
-                height="160" 
-                rx="24" 
-                fill="#00E5C7" 
-                stroke="white"
-                strokeWidth="4"
-              />
-              
-              {/* Simplified notch/camera */}
-              <circle 
-                cx="100" 
-                cy="35" 
-                r="5" 
-                fill="white" 
-              />
-              
-              {/* Simplified heart */}
-              <path 
-                d="M100 140 C100 140 75 120 75 100 C75 85 85 80 95 80 C99 80 100 82 100 82 C100 82 101 80 105 80 C115 80 125 85 125 100 C125 120 100 140 100 140 Z" 
-                fill="white"
-              />
-            </svg>
-            <h1 className="text-xl font-semibold tracking-tight">beaUX</h1>
-          </Link>
-        </div>
+      <div className="flex items-center">
+        {/* beaUX Logo - Elegant and Minimalist */}
+        <Link to="/" className="flex items-center group">
+          <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-cyan-400 to-purple-500 hover:from-purple-500 hover:via-cyan-400 hover:to-primary transition-all duration-700">
+            beaUX
+          </h1>
+          <div className="absolute -bottom-1 w-0 h-0.5 bg-gradient-to-r from-primary to-purple-500 group-hover:w-full transition-all duration-700"></div>
+        </Link>
         
-        {/* Navigation Links */}
-        <nav className="flex items-center space-x-1">
-          <Link 
-            to="/" 
-            className={cn(
-              "px-3 py-1.5 text-sm rounded-md transition-colors",
-              !isReactWebPage 
-                ? "bg-primary/10 text-primary font-medium" 
-                : "hover:bg-muted text-muted-foreground hover:text-foreground"
-            )}
-          >
-            React Native
-          </Link>
-          <Link 
-            to="/react-web" 
-            className={cn(
-              "px-3 py-1.5 text-sm rounded-md transition-colors",
-              isReactWebPage 
-                ? "bg-primary/10 text-primary font-medium" 
-                : "hover:bg-muted text-muted-foreground hover:text-foreground"
-            )}
-          >
-            React Web
-          </Link>
-        </nav>
+        {/* Rotating text animation - Minimalist */}
+        <div className="flex items-center ml-4">
+          <div className="relative h-6 overflow-hidden">
+            <span 
+              className={cn(
+                "absolute transition-all duration-500 transform min-w-24 text-center text-sm",
+                isAnimating 
+                  ? "opacity-100 translate-y-0" 
+                  : "opacity-0 -translate-y-6"
+              )}
+              style={{ color: '#00E5C7' }}
+            >
+              {rotatingWords[currentWordIndex]}
+            </span>
+          </div>
+        </div>
       </div>
       
       <div className="flex items-center gap-4">
@@ -92,7 +77,57 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
             Beta
           </span>
         </div>
+        
+        {/* Menu Button */}
+        <button 
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className="p-2 rounded-md hover:bg-muted transition-colors"
+          aria-label="Toggle menu"
+        >
+          {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
       </div>
+      
+      {/* Dropdown Menu */}
+      {isMenuOpen && (
+        <div className="absolute top-full right-0 mt-1 w-48 bg-background rounded-md shadow-lg border border-border/60 overflow-hidden z-50">
+          <div className="py-1">
+            <button 
+              onClick={() => scrollToSection('diagram')}
+              className={cn(
+                "w-full text-left px-4 py-2 text-sm transition-colors",
+                activeSection === 'diagram' 
+                  ? "bg-purple-500/10 text-purple-500 font-medium" 
+                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Visual Architecture Designer
+            </button>
+            <button 
+              onClick={() => scrollToSection('react-native')}
+              className={cn(
+                "w-full text-left px-4 py-2 text-sm transition-colors",
+                activeSection === 'react-native' 
+                  ? "bg-primary/10 text-primary font-medium" 
+                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              React Native Sandbox
+            </button>
+            <button 
+              onClick={() => scrollToSection('react-web')}
+              className={cn(
+                "w-full text-left px-4 py-2 text-sm transition-colors",
+                activeSection === 'react-web' 
+                  ? "bg-cyan-500/10 text-cyan-500 font-medium" 
+                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              React Web Sandbox
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
