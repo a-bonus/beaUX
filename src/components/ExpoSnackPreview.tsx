@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface ExpoSnackPreviewProps {
   code: string;
@@ -13,59 +13,113 @@ function ExpoSnackPreview({
   platform = 'web',
   className
 }: ExpoSnackPreviewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [snackId] = useState(() => `snack-${Math.random().toString(36).substring(2, 11)}`);
+  const [snackReady, setSnackReady] = useState(false);
+
+  // This will handle loading the SDK script only once
   useEffect(() => {
-    // Ensure Snack embed script is loaded
-    if (!document.getElementById('snack-embed-script')) {
+    // Check if the script already exists
+    if (!document.getElementById('snack-sdk-script')) {
       const script = document.createElement('script');
-      script.id = 'snack-embed-script';
+      script.id = 'snack-sdk-script';
       script.src = 'https://snack.expo.dev/embed.js';
       script.async = true;
+      script.onload = () => {
+        console.log('Expo Snack SDK loaded');
+        setSnackReady(true);
+      };
       document.body.appendChild(script);
+    } else {
+      setSnackReady(true);
+    }
+
+    // Cleanup function
+    return () => {
+      // We don't remove the script as other instances may need it
+    };
+  }, []);
+
+  // Message handler for Snack communication
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Only process messages from Snack
+      if (event.origin !== 'https://snack.expo.dev') return;
       
-      return () => {
-        // Clean up script when component unmounts if it was added by this component
-        const embeddedScript = document.getElementById('snack-embed-script');
-        if (embeddedScript) {
-          document.body.removeChild(embeddedScript);
+      // Log Snack events for debugging
+      if (event.data && event.data.type === 'snack') {
+        console.log('Snack event:', event.data);
+        
+        // If Snack signals it's ready
+        if (event.data.status === 'ready') {
+          setSnackReady(true);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
+  // Update the Snack when code, dependencies, or platform changes
+  useEffect(() => {
+    if (!snackReady || !iframeRef.current) return;
+    
+    try {
+      // Convert dependencies string to object format expected by Snack
+      const depsObject = dependencies.split(',').reduce((acc, dep) => {
+        const [name, version = 'latest'] = dep.trim().split('@');
+        if (name) {
+          acc[name] = version;
+        }
+        return acc;
+      }, {} as Record<string, string>);
+
+      // Send message to Snack iframe
+      const message = {
+        type: 'snackager',
+        code,
+        name: 'beaUX Generated Component',
+        description: 'Created with beaUX',
+        dependencies: depsObject,
+        platform,
+        files: {
+          'App.js': {
+            type: 'CODE',
+            contents: code
+          }
         }
       };
+
+      console.log('Updating Snack with:', { code: code.substring(0, 50) + '...', platform, dependencies });
+      iframeRef.current.contentWindow?.postMessage(message, 'https://snack.expo.dev');
+    } catch (error) {
+      console.error('Error updating Snack:', error);
     }
-  }, []);
-  
-  // When the code, dependencies, or platform changes, we need to update the container
-  // This will be handled by the Expo embed.js script which looks for data-snack attributes
-  useEffect(() => {
-    // If there's an iframe in the container, we need to remove it so embed.js can create a new one
-    if (containerRef.current) {
-      // The embed.js script will automatically repopulate the container
-      const iframe = containerRef.current.querySelector('iframe');
-      if (iframe) {
-        containerRef.current.removeChild(iframe);
-      }
-    }
-  }, [code, dependencies, platform]);
-  
+  }, [code, dependencies, platform, snackReady]);
+
   return (
-    <div
-      ref={containerRef}
-      data-snack-code={encodeURIComponent(code)}
-      data-snack-dependencies={encodeURIComponent(dependencies)}
-      data-snack-name="beaUX Generated Component"
-      data-snack-description="Generated with beaUX AI"
-      data-snack-preview="true"
-      data-snack-platform={platform}
-      className={className}
-      style={{
-        overflow: "hidden", 
-        background: "#fafafa", 
-        border: "1px solid rgba(0,0,0,.08)", 
-        borderRadius: "4px", 
-        height: "505px", 
-        width: "100%"
-      }}
-    />
+    <div className={`w-full h-[500px] relative ${className || ''}`}>
+      <iframe
+        ref={iframeRef}
+        id={snackId}
+        title="Expo Snack"
+        src={`https://snack.expo.dev/embedded?platform=${platform}&preview=true&theme=light&name=beaUX%20Component&supportedPlatforms=ios,android,web`}
+        className="w-full h-full rounded-md border border-border"
+        frameBorder="0"
+        allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; microphone; usb; web-share"
+        sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
+      />
+      {!snackReady && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/70 rounded-md">
+          <div className="text-sm text-foreground animate-pulse">
+            Loading Expo Snack...
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

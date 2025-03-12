@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import AIReactNativeGenerator from '../components/AIReactNativeGenerator';
 import ExpoSnackPreview from '../components/ExpoSnackPreview';
+import { Clipboard, ClipboardCheck } from 'lucide-react';
 
 const defaultReactNativeCode = `import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
@@ -64,6 +65,8 @@ const ReactNativePage: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [dependencies, setDependencies] = useState('expo-constants,react-native-paper@4');
   const [platform, setPlatform] = useState<'web' | 'ios' | 'android' | 'mydevice'>('web');
+  const [isCopied, setIsCopied] = useState(false);
+  const snackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -75,6 +78,25 @@ const ReactNativePage: React.FC = () => {
 
   const handleGeneratedCode = (generatedCode: string) => {
     setCode(generatedCode);
+    
+    // Automatically switch back to the Snack preview when new code is generated
+    if (snackTimeoutRef.current) {
+      clearTimeout(snackTimeoutRef.current);
+    }
+  };
+  
+  const copyCodeToClipboard = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    });
+  };
+
+  const openInExpoSnack = () => {
+    const encodedCode = encodeURIComponent(code);
+    const encodedDependencies = encodeURIComponent(dependencies);
+    const snackUrl = `https://snack.expo.dev/?code=${encodedCode}&dependencies=${encodedDependencies}&platform=${platform}`;
+    window.open(snackUrl, '_blank');
   };
 
   return (
@@ -136,7 +158,35 @@ const ReactNativePage: React.FC = () => {
           
           <div className="flex flex-col space-y-4">
             <div className="rounded-lg border border-input p-4 bg-background flex-1">
-              <h3 className="text-sm font-medium mb-3">Live Preview</h3>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-medium">Live Preview</h3>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={copyCodeToClipboard}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    title="Copy code"
+                  >
+                    {isCopied ? (
+                      <>
+                        <ClipboardCheck className="h-3.5 w-3.5" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clipboard className="h-3.5 w-3.5" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={openInExpoSnack}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    title="Open in Expo Snack"
+                  >
+                    <span>Open in Expo Snack</span>
+                  </button>
+                </div>
+              </div>
               <ExpoSnackPreview 
                 code={code}
                 dependencies={dependencies}
