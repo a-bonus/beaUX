@@ -166,8 +166,22 @@ const ReactNativePage: React.FC = () => {
 
   const openInExpoSnack = () => {
     const encodedCode = encodeURIComponent(code);
-    const encodedDependencies = encodeURIComponent(dependencies);
-    const snackUrl = `https://snack.expo.dev/?code=${encodedCode}&dependencies=${encodedDependencies}&platform=${platform}`;
+    // Format dependencies for proper Expo Snack URL
+    const depsObject = dependencies.split(',').reduce((acc, dep) => {
+      const [name, version = 'latest'] = dep.trim().split('@');
+      if (name) {
+        acc[name] = version;
+      }
+      return acc;
+    }, {} as Record<string, string>);
+    
+    // Create a properly formatted dependencies string for the URL
+    const formattedDeps = Object.entries(depsObject)
+      .map(([name, version]) => `${name}@${version}`)
+      .join(',');
+    
+    const encodedDependencies = encodeURIComponent(formattedDeps);
+    const snackUrl = `https://snack.expo.dev/?code=${encodedCode}&dependencies=${encodedDependencies}&platform=${platform}&sdkVersion=48.0.0&name=beaUX%20Component`;
     
     if (typeof window !== 'undefined') {
       window.open(snackUrl, '_blank');

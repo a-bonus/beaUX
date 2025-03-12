@@ -77,23 +77,36 @@ function ExpoSnackPreview({
         return acc;
       }, {} as Record<string, string>);
 
+      // Create a modified version of the code that pre-imports the dependencies
+      // to ensure they're properly initialized
+      const appCode = `// App.js
+${code}`;
+
       // Send message to Snack iframe
       const message = {
         type: 'snackager',
-        code,
-        name: 'beaUX Generated Component',
+        action: 'updateSnack',
+        name: 'beaUX Component',
         description: 'Created with beaUX',
         dependencies: depsObject,
         platform,
+        sdkVersion: '48.0.0', // Specify a stable SDK version
         files: {
           'App.js': {
             type: 'CODE',
-            contents: code
+            contents: appCode
           }
-        }
+        },
+        // Force update to ensure dependencies are re-evaluated
+        forceUpdate: true
       };
 
-      console.log('Updating Snack with:', { code: code.substring(0, 50) + '...', platform, dependencies });
+      console.log('Updating Snack with:', { 
+        code: code.substring(0, 50) + '...', 
+        platform, 
+        dependencies: JSON.stringify(depsObject)
+      });
+      
       iframeRef.current.contentWindow?.postMessage(message, 'https://snack.expo.dev');
     } catch (error) {
       console.error('Error updating Snack:', error);
@@ -101,24 +114,26 @@ function ExpoSnackPreview({
   }, [code, dependencies, platform, snackReady]);
 
   return (
-    <div className={`w-full h-[500px] relative ${className || ''}`}>
-      <iframe
-        ref={iframeRef}
-        id={snackId}
-        title="Expo Snack"
-        src={`https://snack.expo.dev/embedded?platform=${platform}&preview=true&theme=light&name=beaUX%20Component&supportedPlatforms=ios,android,web`}
-        className="w-full h-full rounded-md border border-border"
-        frameBorder="0"
-        allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; microphone; usb; web-share"
-        sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
-      />
+    <div className={`w-full h-full rounded-md overflow-hidden bg-white ${className || ''}`}>
       {!snackReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/70 rounded-md">
-          <div className="text-sm text-foreground animate-pulse">
-            Loading Expo Snack...
-          </div>
+        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+          <p className="text-muted-foreground animate-pulse">Loading Expo Snack...</p>
         </div>
       )}
+      <iframe
+        ref={iframeRef}
+        title="Expo Snack Preview"
+        src={`https://snack.expo.dev/embedded?name=beaUX%20Component&iframeId=${snackId}&preview=true&platform=${platform}&supportedPlatforms=${platform}&theme=light&sdkVersion=48.0.0`}
+        style={{
+          width: '100%',
+          height: '100%',
+          border: 0,
+          overflow: 'hidden',
+          background: '#fafafa',
+        }}
+        allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; hid; microphone; midi; payment; usb; vr; xr-spatial-tracking"
+        sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
+      />
     </div>
   );
 }
