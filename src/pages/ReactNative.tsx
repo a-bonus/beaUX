@@ -109,29 +109,57 @@ const ReactNativePage: React.FC = () => {
     return detectedDependencies;
   };
 
+  const processAndNormalizeDependencies = (code: string, currentDeps: string): string => {
+    const detectedDependencies = detectDependenciesFromCode(code);
+    let depsArray = currentDeps.split(',').map(d => d.trim()).filter(Boolean);
+    
+    detectedDependencies.forEach(dep => {
+      // Check if the dependency already exists
+      const existingDepIndex = depsArray.findIndex(existingDep => {
+        const existingPackageName = existingDep.split('@')[0];
+        return existingPackageName === dep;
+      });
+      
+      // If it doesn't exist, add it with special handling for specific packages
+      if (existingDepIndex === -1) {
+        if (dep === 'expo-linear-gradient') {
+          depsArray.push('expo-linear-gradient@~12.3.0'); // Use specific version for this package
+        } else {
+          depsArray.push(dep);
+        }
+      } 
+      // If it exists but it's expo-linear-gradient without version, update it
+      else if (dep === 'expo-linear-gradient' && depsArray[existingDepIndex] === 'expo-linear-gradient') {
+        depsArray[existingDepIndex] = 'expo-linear-gradient@~12.3.0';
+      }
+    });
+    
+    return depsArray.join(',');
+  };
+
   const handleGeneratedCode = (generatedCode: string, prompt: string) => {
     setCode(generatedCode);
     setCurrentPrompt(prompt);
     
-    // Detect and add dependencies automatically
-    const detectedDependencies = detectDependenciesFromCode(generatedCode);
-    if (detectedDependencies.length > 0) {
+    // Process dependencies with the new helper function
+    const updatedDependencies = processAndNormalizeDependencies(generatedCode, dependencies);
+    
+    // Update dependencies if changed and track newly added ones
+    if (updatedDependencies !== dependencies) {
       const currentDeps = dependencies.split(',').map(d => d.trim()).filter(Boolean);
-      // Only add dependencies that aren't already included
-      const newDepsToAdd = detectedDependencies.filter(dep => {
-        // Check if dependency or dependency@version is already in the list
-        return !currentDeps.some(existingDep => {
-          const existingPackageName = existingDep.split('@')[0];
-          return existingPackageName === dep;
-        });
-      });
+      const newDeps = updatedDependencies.split(',').map(d => d.trim()).filter(Boolean);
       
-      if (newDepsToAdd.length > 0) {
-        const newDeps = [...currentDeps, ...newDepsToAdd];
-        setDependencies(newDeps.join(','));
-        // Store recently added dependencies for UI feedback
-        setRecentlyAddedDeps(newDepsToAdd);
-        // Clear the recently added deps after 5 seconds
+      // Find newly added dependencies for UI feedback
+      const newlyAdded = newDeps.filter(dep => !currentDeps.some(existingDep => {
+        const [newName] = dep.split('@');
+        const [existingName] = existingDep.split('@');
+        return newName === existingName;
+      }));
+      
+      setDependencies(updatedDependencies);
+      
+      if (newlyAdded.length > 0) {
+        setRecentlyAddedDeps(newlyAdded);
         setTimeout(() => setRecentlyAddedDeps([]), 5000);
       }
     }

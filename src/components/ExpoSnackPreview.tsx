@@ -72,15 +72,24 @@ function ExpoSnackPreview({
       const depsObject = dependencies.split(',').reduce((acc, dep) => {
         const [name, version = 'latest'] = dep.trim().split('@');
         if (name) {
-          acc[name] = version;
+          // Ensure proper versioning for known problematic packages
+          if (name === 'expo-linear-gradient') {
+            acc[name] = '~12.3.0'; // Use a specific compatible version
+          } else {
+            acc[name] = version;
+          }
         }
         return acc;
       }, {} as Record<string, string>);
 
       // Create a modified version of the code that pre-imports the dependencies
       // to ensure they're properly initialized
-      const appCode = `// App.js
-${code}`;
+      const appCode = `// App.js - Generated with beaUX
+// Ensure all dependencies are properly imported
+${code}
+
+// Make sure the component is exported at the end
+export default ${getComponentName(code) || 'App'};`;
 
       // Send message to Snack iframe
       const message = {
@@ -113,6 +122,19 @@ ${code}`;
     }
   }, [code, dependencies, platform, snackReady]);
 
+  // Function to extract component name from code
+  const getComponentName = (code: string): string | null => {
+    const functionMatch = code.match(/function\s+([A-Za-z0-9_]+)\s*\(/);
+    if (functionMatch && functionMatch[1]) {
+      return functionMatch[1];
+    }
+    const constMatch = code.match(/const\s+([A-Za-z0-9_]+)\s*=\s*\(\)/);
+    if (constMatch && constMatch[1]) {
+      return constMatch[1];
+    }
+    return null;
+  };
+
   return (
     <div className={`w-full h-full rounded-md overflow-hidden bg-white ${className || ''}`}>
       {!snackReady && (
@@ -123,7 +145,7 @@ ${code}`;
       <iframe
         ref={iframeRef}
         title="Expo Snack Preview"
-        src={`https://snack.expo.dev/embedded?name=beaUX%20Component&iframeId=${snackId}&preview=true&platform=${platform}&supportedPlatforms=${platform}&theme=light&sdkVersion=48.0.0`}
+        src={`https://snack.expo.dev/embedded?name=beaUX%20Component&iframeId=${snackId}&preview=true&platform=${platform}&supportedPlatforms=${platform}&theme=light&sdkVersion=48.0.0&dependencies=${encodeURIComponent(dependencies)}`}
         style={{
           width: '100%',
           height: '100%',
