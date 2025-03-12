@@ -45,17 +45,18 @@ CRITICAL RENDERING REQUIREMENTS:
 - Component name MUST be in PascalCase and descriptive (e.g., TestComponent, UserProfile)
 - DO NOT use export statements - the component will be rendered directly
 - Add Component.displayName = 'ComponentName' for better debugging
-- ALWAYS begin with imports: import React, { useState, useEffect, etc. } from 'react';
-- Include PropTypes import if you use prop validation: import PropTypes from 'prop-types';
+- DO NOT begin with imports - React, useState, and useEffect are automatically available
 - The component MUST be defined with the exact pattern 'function ComponentName() {' for the renderer to detect it
 - Return ONLY valid code without explanations or markdown formatting
+- The previewer creates a sandboxed iframe with React available as a global variable, but you need to access hooks through the React object itself.
 
 HOW THE BEAUX PREVIEWER WORKS:
 - It looks for a function component using the regex pattern /function\\s+([^({\\s]+)/ to extract the component name
 - It creates a sandboxed iframe with React, ReactDOM, and Babel pre-loaded
 - It injects your component code into this iframe and renders it
-- Your component must be completely self-contained with all necessary imports
-- The beaUX previewer creates a sandboxed environment with just React, ReactDOM, and Babel - it doesn't include external CSS or icon libraries.
+- Your component must be completely self-contained
+- The beaUX previewer creates a sandboxed environment with React, ReactDOM, and Babel pre-loaded - you don't need to import them
+- React hooks (useState, useEffect, etc.) are available without imports
 
 COMPONENT STRUCTURE:
 - Use PascalCase for component names (e.g., UserProfile not userProfile)
