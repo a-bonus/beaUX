@@ -16,7 +16,9 @@ import {
   Hand,
   Move,
   Code,
-  MousePointer
+  MousePointer,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react';
 
 interface ComponentNode {
@@ -61,6 +63,11 @@ const DiagramEditor: React.FC = () => {
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [isPanMode, setIsPanMode] = useState(false);
   
+  // State for sidebar collapse and resizing
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(240); // Initial width (60 * 4)
+  const [isResizing, setIsResizing] = useState(false);
+  
   // State for undo/redo
   const [history, setHistory] = useState<{nodes: ComponentNode[], connections: Connection[]}[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -81,6 +88,7 @@ const DiagramEditor: React.FC = () => {
   
   // Refs for interaction
   const editorRef = useRef<HTMLDivElement>(null);
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const isDraggingCanvas = useRef(false);
@@ -333,19 +341,54 @@ const DiagramEditor: React.FC = () => {
     }
   }, []);
 
+  // Handle sidebar resize
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    document.addEventListener('mousemove', handleResizeMouseMove);
+    document.addEventListener('mouseup', handleResizeMouseUp);
+  };
+
+  const handleResizeMouseMove = (e: MouseEvent) => {
+    if (isResizing) {
+      const newWidth = e.clientX;
+      // Set min and max constraints
+      if (newWidth >= 120 && newWidth <= 500) {
+        setSidebarWidth(newWidth);
+      }
+    }
+  };
+
+  const handleResizeMouseUp = () => {
+    setIsResizing(false);
+    document.removeEventListener('mousemove', handleResizeMouseMove);
+    document.removeEventListener('mouseup', handleResizeMouseUp);
+  };
+
+  // Add event listeners for resize
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMouseMove);
+      document.removeEventListener('mouseup', handleResizeMouseUp);
+    };
+  }, [isResizing]);
+
   return (
-    <div className="flex flex-col rounded-lg border border-border overflow-hidden bg-white">
-      <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            value={currentDiagramName}
-            onChange={(e) => setCurrentDiagramName(e.target.value)}
-            className="font-medium text-sm rounded border border-transparent hover:border-border focus:border-border px-2 py-1 focus:outline-none"
-          />
+    <div className="flex flex-col h-full bg-muted">
+      {/* Top Bar */}
+      <div className="bg-card border-b border-border p-2 flex items-center justify-between">
+        <div className="flex items-center">
+          <h2 className="text-lg font-semibold mr-3">{currentDiagramName}</h2>
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="mr-2 p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title={isSidebarCollapsed ? "Show Sidebar" : "Hide Sidebar"}
+          >
+            {isSidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </button>
         </div>
         
-        <div className="flex items-center gap-1">
+        <div className="flex items-center space-x-1">
           {/* Undo/Redo */}
           <button 
             onClick={() => {
@@ -446,7 +489,12 @@ const DiagramEditor: React.FC = () => {
       {/* Canvas and Sidebar */}
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
-        <div className="border-r border-border w-60 overflow-y-auto p-2 bg-white">
+        <div 
+          className={`border-r border-border overflow-y-auto bg-white transition-all duration-200 ${
+            isSidebarCollapsed ? 'w-0 px-0 overflow-hidden' : 'overflow-y-auto p-2'
+          }`}
+          style={{ width: isSidebarCollapsed ? 0 : sidebarWidth }}
+        >
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-medium text-sm">Components</h4>
             
@@ -555,6 +603,15 @@ const DiagramEditor: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Resize Handle */}
+        {!isSidebarCollapsed && (
+          <div
+            ref={resizeHandleRef}
+            className="w-1 bg-border hover:bg-primary hover:w-1.5 cursor-col-resize transition-colors duration-150 z-10"
+            onMouseDown={handleResizeMouseDown}
+          />
+        )}
         
         {/* Canvas */}
         <div 
