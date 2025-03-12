@@ -1,177 +1,72 @@
-# beaUX MVP Implementation Guide
+# beaUX - The Beautiful Developer Experience
 
-## **🚀 Overview**
-This document provides step-by-step instructions to build the **beaUX MVP** with two core features:
+![beaUX](https://img.shields.io/badge/status-beta-purple)
 
-1. **Component Previewing** – Users can enter React code and see a live preview.
-2. **AI-Generated Components** – Users can describe a component, and AI (Claude API) will generate React code.
+## **✨ Overview**
+beaUX is a powerful development environment that combines React and React Native development tools in a beautiful, intuitive interface. It features:
 
----
+1. **Visual Architecture Designer** – Visualize and plan your component architecture with an interactive canvas board, with all your designs saved to local storage.
+2. **AI-Powered React Native Sandbox** – Create, preview, and generate React Native components with AI assistance and Expo Snack integration.
+3. **React Web Sandbox** – Build React web components with real-time preview and AI-powered component generation.
 
-## **🟢 Step 2: Build the Component Previewing System**
+## **🎨 Key Features**
 
-### **1. Set Up the Project with Vite & TailwindCSS**
+### **Visual Architecture Designer**
+- Interactive canvas to visualize component relationships
+- Drag and drop interface for creating component diagrams
+- Local storage persistence for saving your designs
+- Add notes and annotations to your component architecture
+
+### **AI-Powered React Native Sandbox**
+- Integrated AI assistant for generating React Native components
+- Live preview with Expo Snack
+- Automatic dependency detection and management
+- Multi-platform preview (web, iOS, Android)
+
+### **React Web Sandbox**
+- Real-time React component preview
+- AI-assisted component generation
+- Integrated code editor with syntax highlighting
+- Component library with reusable elements
+
+## **🚀 Getting Started**
+
+### **Installation**
 ```bash
-npm create vite@latest beaUX --template react-ts
+# Clone the repository
+git clone https://github.com/a-bonus/beaUX.git
 cd beaUX
+
+# Install dependencies
 npm install
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
-```
-Configure Tailwind in `tailwind.config.ts` and add global styles in `index.css`.
 
-### **2. Create the UI Layout (Editor + Preview Window)**
-Create `src/pages/Home.tsx`:
-```tsx
-import { useState } from "react";
-
-export default function Home() {
-  const [code, setCode] = useState("<button>Click me</button>");
-
-  return (
-    <div className="grid grid-cols-2 h-screen p-4 gap-4">
-      <textarea
-        className="w-full h-full p-2 border rounded-lg font-mono"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-      />
-      <iframe
-        className="w-full h-full border rounded-lg"
-        srcDoc={`<html><body>${code}</body></html>`}
-      />
-    </div>
-  );
-}
+# Start the development server
+npm run dev
 ```
 
-### **3. Safely Render Components Using an iframe Sandbox**
-```tsx
-const createBlobURL = (code: string) => {
-  const blob = new Blob([code], { type: "text/html" });
-  return URL.createObjectURL(blob);
-};
-<iframe src={createBlobURL(code)} />;
-```
+### **Usage**
+1. Access the Visual Architecture Designer to plan your component structure
+2. Use the AI-Powered React Native Sandbox to create mobile components
+3. Switch to the React Web Sandbox for web component development
+4. All your work is automatically saved to local storage
 
-### **4. Handle Errors Gracefully**
-```tsx
-<Suspense fallback={<div>Loading...</div>}>
-  <iframe src={createBlobURL(code)} />
-</Suspense>
-```
+## **🛠️ Technology Stack**
+- Built with Vite + React TypeScript
+- TailwindCSS for styling
+- Babel for JSX transpilation
+- OpenRouter API for AI assistance
+- Expo Snack for React Native previews
 
-### **5. Deploy the MVP to Vercel**
-- Push code to **GitHub** and deploy to **Vercel**.
+## **🔮 Coming Soon**
+- Component export functionality
+- Full project scaffolding
+- Additional AI models
+- Theme customization
+- Collaborative editing
 
----
+## **👨‍💻 Connect with the Creator**
+- [LinkedIn](https://linkedin.com/in/alainbonus)
+- [GitHub](https://github.com/a-bonus)
 
-## **🟠 Step 3: Integrate AI-Generated Component Functionality**
-
-### **6. Set Up a Backend to Call the Claude API**
-Install dependencies:
-```bash
-npm install axios
-```
-Create `server.js`:
-```js
-import express from "express";
-import axios from "axios";
-import cors from "cors";
-
-const app = express();
-app.use(express.json());
-app.use(cors());
-
-app.post("/generate", async (req, res) => {
-  const { prompt } = req.body;
-  try {
-    const response = await axios.post("https://api.anthropic.com/v1/claude", {
-      prompt: `Generate a React component for: ${prompt}`,
-      model: "claude-2",
-      apiKey: process.env.CLAUDE_API_KEY,
-    });
-    res.json({ code: response.data });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to generate component" });
-  }
-});
-
-app.listen(3001, () => console.log("Server running on port 3001"));
-```
-
-### **7. Create a Frontend UI for AI-Powered Component Generation**
-```tsx
-const [prompt, setPrompt] = useState("");
-const [generatedCode, setGeneratedCode] = useState("");
-
-const generateComponent = async () => {
-  const response = await fetch("http://localhost:3001/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  });
-
-  const data = await response.json();
-  setGeneratedCode(data.code);
-};
-
-return (
-  <div className="p-4">
-    <input
-      className="border p-2 rounded w-full"
-      placeholder="Describe your component..."
-      value={prompt}
-      onChange={(e) => setPrompt(e.target.value)}
-    />
-    <button className="mt-2 p-2 bg-blue-500 text-white rounded" onClick={generateComponent}>
-      Generate Component
-    </button>
-    <pre className="mt-4 bg-gray-100 p-2 rounded">{generatedCode}</pre>
-  </div>
-);
-```
-
-### **8. Inject AI-Generated Code into the Preview**
-```tsx
-<iframe srcDoc={`<html><body>${generatedCode}</body></html>`} />;
-```
-
-### **9. Cache AI-Generated Components**
-```tsx
-const cacheKey = `ai_component_${prompt}`;
-const cachedCode = localStorage.getItem(cacheKey);
-
-if (cachedCode) {
-  setGeneratedCode(cachedCode);
-} else {
-  fetch(...).then((data) => {
-    setGeneratedCode(data.code);
-    localStorage.setItem(cacheKey, data.code);
-  });
-}
-```
-
-### **10. Deploy AI Integration & Optimize for Performance**
-- Deploy **backend on Railway or Fly.io**.
-- Optimize API calls using **debounced input**:
-```tsx
-import { useState, useEffect } from "react";
-
-const [prompt, setPrompt] = useState("");
-const [debouncedPrompt, setDebouncedPrompt] = useState("");
-
-useEffect(() => {
-  const handler = setTimeout(() => setDebouncedPrompt(prompt), 500);
-  return () => clearTimeout(handler);
-}, [prompt]);
-```
-
----
-
-## **✅ Next Steps**
-This guide takes you **from zero to MVP**. Now, you can:
-1. Refine the **UI/UX**.
-2. Add **styling and animations**.
-3. Optimize **performance and AI output quality**.
-
-💡 Need help? Start by **implementing the Component Previewing System first!** 🚀
+## **💖 Made with heart for the vibe coders**
+This project is built with love for developers who appreciate beautiful tools and smooth experiences.

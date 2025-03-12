@@ -97,7 +97,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
               className={cn(
                 "w-full text-left px-4 py-2 text-sm transition-colors",
                 activeSection === 'diagram' 
-                  ? "bg-purple-500/10 text-purple-500 font-medium" 
+                  ? "bg-purple-500/5 text-purple-400 font-medium" 
                   : "hover:bg-muted text-muted-foreground hover:text-foreground"
               )}
             >
@@ -108,7 +108,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
               className={cn(
                 "w-full text-left px-4 py-2 text-sm transition-colors",
                 activeSection === 'react-native' 
-                  ? "bg-primary/10 text-primary font-medium" 
+                  ? "bg-primary/5 text-primary/90 font-medium" 
                   : "hover:bg-muted text-muted-foreground hover:text-foreground"
               )}
             >
@@ -119,7 +119,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
               className={cn(
                 "w-full text-left px-4 py-2 text-sm transition-colors",
                 activeSection === 'react-web' 
-                  ? "bg-cyan-500/10 text-cyan-500 font-medium" 
+                  ? "bg-cyan-500/5 text-cyan-400 font-medium" 
                   : "hover:bg-muted text-muted-foreground hover:text-foreground"
               )}
             >
