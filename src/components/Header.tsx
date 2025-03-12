@@ -8,7 +8,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ className }) => {
   const location = useLocation();
-  const isReactNativePage = location.pathname === '/react-native';
+  const isReactWebPage = location.pathname === '/react-web';
   
   return (
     <header className={cn(
@@ -65,23 +65,23 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
             to="/" 
             className={cn(
               "px-3 py-1.5 text-sm rounded-md transition-colors",
-              !isReactNativePage 
-                ? "bg-primary/10 text-primary font-medium" 
-                : "hover:bg-muted text-muted-foreground hover:text-foreground"
-            )}
-          >
-            React Web
-          </Link>
-          <Link 
-            to="/react-native" 
-            className={cn(
-              "px-3 py-1.5 text-sm rounded-md transition-colors",
-              isReactNativePage 
+              !isReactWebPage 
                 ? "bg-primary/10 text-primary font-medium" 
                 : "hover:bg-muted text-muted-foreground hover:text-foreground"
             )}
           >
             React Native
+          </Link>
+          <Link 
+            to="/react-web" 
+            className={cn(
+              "px-3 py-1.5 text-sm rounded-md transition-colors",
+              isReactWebPage 
+                ? "bg-primary/10 text-primary font-medium" 
+                : "hover:bg-muted text-muted-foreground hover:text-foreground"
+            )}
+          >
+            React Web
           </Link>
         </nav>
       </div>
