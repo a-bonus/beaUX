@@ -1,21 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  ArrowRight, 
-  Plus, 
-  Trash2, 
-  MoveHorizontal, 
-  Undo, 
-  Redo,
+  X,
+  Plus,
+  ChevronRight,
   ZoomIn,
   ZoomOut,
-  PackagePlus,
-  FileCode,
-  Download,
-  ArrowRightCircle,
+  PanelLeft,
+  PanelRight,
+  Undo,
+  Redo,
+  Trash,
   ChevronDown,
   ChevronUp,
   Move,
-  Save
+  Save,
+  FilePlus,
+  FolderOpen,
+  Trash2,
+  Download,
+  Upload,
+  ArrowRightCircle,
+  ArrowRight,
+  PackagePlus,
+  FileCode
 } from 'lucide-react';
 
 interface ComponentNode {
@@ -65,6 +72,13 @@ const DiagramEditor: React.FC = () => {
   const isDraggingCanvas = useRef(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const [isPanMode, setIsPanMode] = useState(false);
+  
+  // State for diagram persistence
+  const [savedDiagrams, setSavedDiagrams] = useState<{id: string, name: string, timestamp: number}[]>([]);
+  const [currentDiagramName, setCurrentDiagramName] = useState('My Diagram');
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Sample data for demonstration
   const initialSampleData: { nodes: ComponentNode[], connections: Connection[] } = {
@@ -114,9 +128,31 @@ const DiagramEditor: React.FC = () => {
   };
 
   useEffect(() => {
-    setNodes(initialSampleData.nodes);
-    setConnections(initialSampleData.connections);
-    saveToHistory(initialSampleData.nodes, initialSampleData.connections);
+    // Load the saved diagrams list from localStorage
+    const savedDiagramsList = localStorage.getItem('beaUX-saved-diagrams');
+    if (savedDiagramsList) {
+      setSavedDiagrams(JSON.parse(savedDiagramsList));
+    }
+    
+    // Load the last edited diagram if it exists
+    const lastDiagram = localStorage.getItem('beaUX-current-diagram');
+    if (lastDiagram) {
+      try {
+        const parsed = JSON.parse(lastDiagram);
+        setNodes(parsed.nodes);
+        setConnections(parsed.connections);
+        setCurrentDiagramName(parsed.name || 'My Diagram');
+        saveToHistory(parsed.nodes, parsed.connections);
+        showFeedbackToast('Previous diagram loaded');
+      } catch (err) {
+        console.error('Failed to load saved diagram:', err);
+      }
+    } else {
+      // Use initial sample data if no saved diagram
+      setNodes(initialSampleData.nodes);
+      setConnections(initialSampleData.connections);
+      saveToHistory(initialSampleData.nodes, initialSampleData.connections);
+    }
   }, []);
 
   useEffect(() => {
@@ -131,6 +167,17 @@ const DiagramEditor: React.FC = () => {
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
   }, []);
+
+  useEffect(() => {
+    const autoSaveInterval = setInterval(() => {
+      // Only auto-save if we have nodes
+      if (nodes.length > 0) {
+        saveToLocalStorage(false);
+      }
+    }, 30000);
+    
+    return () => clearInterval(autoSaveInterval);
+  }, [nodes, connections, currentDiagramName]);
 
   const saveToHistory = (nodeState: ComponentNode[], connectionState: Connection[]) => {
     const newState = {
@@ -554,6 +601,101 @@ const DiagramEditor: React.FC = () => {
     setIsCreatingConnection(false);
   };
 
+  // Save diagram to localStorage
+  const saveToLocalStorage = (showFeedback = true) => {
+    const diagramData = {
+      nodes,
+      connections,
+      name: currentDiagramName,
+      lastSaved: new Date().toISOString()
+    };
+    
+    try {
+      // Save current diagram state
+      localStorage.setItem('beaUX-current-diagram', JSON.stringify(diagramData));
+      
+      if (showFeedback) {
+        showFeedbackToast('Diagram saved to browser storage');
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to save diagram:', err);
+      showFeedbackToast('Error saving diagram');
+    }
+  };
+
+  // Save diagram with a specific name
+  const saveDiagramAs = () => {
+    const diagramId = `diagram-${Date.now()}`;
+    const diagramData = {
+      id: diagramId,
+      nodes,
+      connections,
+      name: currentDiagramName,
+      lastSaved: new Date().toISOString()
+    };
+    
+    try {
+      // Add to saved diagrams list
+      const updatedDiagrams = [
+        ...savedDiagrams,
+        { id: diagramId, name: currentDiagramName, timestamp: Date.now() }
+      ];
+      localStorage.setItem('beaUX-saved-diagrams', JSON.stringify(updatedDiagrams));
+      
+      // Save diagram data
+      localStorage.setItem(`beaUX-diagram-${diagramId}`, JSON.stringify(diagramData));
+      
+      setSavedDiagrams(updatedDiagrams);
+      showFeedbackToast(`Diagram "${currentDiagramName}" saved`);
+      setIsSaveModalOpen(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to save diagram:', err);
+      showFeedbackToast('Error saving diagram');
+    }
+  };
+
+  // Load a saved diagram
+  const loadDiagram = (diagramId: string) => {
+    try {
+      const diagramData = localStorage.getItem(`beaUX-diagram-${diagramId}`);
+      if (diagramData) {
+        const parsed = JSON.parse(diagramData);
+        setNodes(parsed.nodes);
+        setConnections(parsed.connections);
+        setCurrentDiagramName(parsed.name);
+        saveToHistory(parsed.nodes, parsed.connections);
+        showFeedbackToast(`Diagram "${parsed.name}" loaded`);
+        setIsLoadModalOpen(false);
+      }
+    } catch (err) {
+      console.error('Failed to load diagram:', err);
+      showFeedbackToast('Error loading diagram');
+    }
+  };
+
+  // Delete a saved diagram
+  const deleteDiagram = (diagramId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // Remove from saved list
+      const updatedDiagrams = savedDiagrams.filter(diagram => diagram.id !== diagramId);
+      localStorage.setItem('beaUX-saved-diagrams', JSON.stringify(updatedDiagrams));
+      
+      // Remove diagram data
+      localStorage.removeItem(`beaUX-diagram-${diagramId}`);
+      
+      setSavedDiagrams(updatedDiagrams);
+      showFeedbackToast('Diagram deleted');
+    } catch (err) {
+      console.error('Failed to delete diagram:', err);
+      showFeedbackToast('Error deleting diagram');
+    }
+  };
+
   return (
     <div className="flex flex-col rounded-lg border border-border overflow-hidden bg-white">
       <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between">
@@ -882,6 +1024,146 @@ const DiagramEditor: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      <div className="flex items-center gap-2">
+        <button 
+          className={`flex items-center gap-1 text-xs bg-white border border-border rounded-md px-2 py-1 hover:bg-muted/30`}
+          title="Zoom in"
+          onClick={() => setZoom(prev => Math.max(0.5, prev - 0.1))}
+        >
+          <ZoomIn className="h-3 w-3" />
+        </button>
+        <span className="text-xs font-mono w-12 text-center">{Math.round(zoom * 100)}%</span>
+        <button 
+          className={`flex items-center gap-1 text-xs bg-white border border-border rounded-md px-2 py-1 hover:bg-muted/30`}
+          title="Zoom out"
+          onClick={() => setZoom(prev => Math.min(2, prev + 0.1))}
+        >
+          <ZoomOut className="h-3 w-3" />
+        </button>
+        
+        <button 
+          className={`flex items-center gap-1 text-xs ${
+            isPanMode 
+              ? 'bg-blue-100 border-blue-300 text-blue-700' 
+              : 'bg-white border-border text-foreground'
+          } border rounded-md px-2 py-1 hover:bg-muted/30`}
+          title={isPanMode ? "Exit pan mode" : "Enter pan mode"}
+          onClick={() => setIsPanMode(!isPanMode)}
+        >
+          <Move className="h-3 w-3" />
+          <span>{isPanMode ? "Exit Pan" : "Pan"}</span>
+        </button>
+
+        <div className="border-l border-border h-5 mx-1"></div>
+        
+        <button 
+          className={`flex items-center gap-1 text-xs ${saveSuccess ? 'bg-green-100 text-green-700 border-green-300' : 'bg-white border-border'} rounded-md px-2 py-1 hover:bg-muted/30`}
+          title="Save diagram"
+          onClick={() => saveToLocalStorage()}
+        >
+          <Save className="h-3 w-3" />
+          <span>{saveSuccess ? 'Saved!' : 'Save'}</span>
+        </button>
+        
+        <button 
+          className="flex items-center gap-1 text-xs bg-white border border-border rounded-md px-2 py-1 hover:bg-muted/30"
+          title="Save As..."
+          onClick={() => setIsSaveModalOpen(true)}
+        >
+          <FilePlus className="h-3 w-3" />
+          <span>Save As...</span>
+        </button>
+
+        <button 
+          className="flex items-center gap-1 text-xs bg-white border border-border rounded-md px-2 py-1 hover:bg-muted/30"
+          title="Load diagram"
+          onClick={() => setIsLoadModalOpen(true)}
+        >
+          <FolderOpen className="h-3 w-3" />
+          <span>Load</span>
+        </button>
+      </div>
+
+      {/* Modals for saving and loading */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-4 w-96 max-w-full">
+            <h3 className="text-lg font-semibold mb-3">Save Diagram</h3>
+            <div className="mb-4">
+              <label className="block text-sm mb-1">Diagram Name</label>
+              <input
+                type="text"
+                value={currentDiagramName}
+                onChange={(e) => setCurrentDiagramName(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-md"
+                placeholder="My Diagram"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 border border-border rounded-md"
+                onClick={() => setIsSaveModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
+                onClick={saveDiagramAs}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {isLoadModalOpen && (
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-4 w-96 max-w-full">
+            <h3 className="text-lg font-semibold mb-3">Load Diagram</h3>
+            
+            {savedDiagrams.length === 0 ? (
+              <p className="text-sm text-muted-foreground my-6 text-center">
+                No saved diagrams found.
+              </p>
+            ) : (
+              <div className="max-h-60 overflow-y-auto mb-4">
+                {savedDiagrams.map(diagram => (
+                  <div 
+                    key={diagram.id}
+                    className="flex items-center justify-between p-2 hover:bg-muted/30 rounded-md cursor-pointer"
+                    onClick={() => loadDiagram(diagram.id)}
+                  >
+                    <div>
+                      <div className="font-medium">{diagram.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(diagram.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                    <button
+                      className="p-1 hover:bg-muted rounded-md"
+                      onClick={(e) => deleteDiagram(diagram.id, e)}
+                      title="Delete diagram"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex justify-end">
+              <button
+                className="px-4 py-2 border border-border rounded-md"
+                onClick={() => setIsLoadModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
