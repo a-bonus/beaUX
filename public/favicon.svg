@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <!-- Gradient definition -->
   <defs>
-    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#1d3b45" />
       <stop offset="20%" stop-color="#207076" />
       <stop offset="40%" stop-color="#20adb6" />
@@ -11,11 +11,9 @@
     </linearGradient>
   </defs>
   
-  <!-- Background circle -->
-  <circle cx="32" cy="32" r="32" fill="white"/>
+  <!-- Background circle with gradient -->
+  <circle cx="32" cy="32" r="30" fill="url(#logoGradient)"/>
   
-  <!-- Simple "b" as the icon -->
-  <text x="18" y="45" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="url(#logoGradient)">
-    b
-  </text>
+  <!-- White "b" as the icon -->
+  <path d="M28 44h-8V20h8c6.627 0 12 5.373 12 12s-5.373 12-12 12zm0-20h-4v16h4c4.418 0 8-3.582 8-8s-3.582-8-8-8z" fill="white"/>
 </svg>
