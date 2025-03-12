@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import AIReactNativeGenerator from '../components/AIReactNativeGenerator';
 import ExpoSnackPreview from '../components/ExpoSnackPreview';
-import { Clipboard, ClipboardCheck } from 'lucide-react';
+import { Clipboard, ClipboardCheck, History, ChevronRight, Code, ExternalLink, Send } from 'lucide-react';
 
 const defaultReactNativeCode = `import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
@@ -60,12 +60,22 @@ const styles = StyleSheet.create({
 
 export default ExampleComponent;`;
 
+interface HistoryItem {
+  id: string;
+  code: string;
+  prompt: string;
+  timestamp: number;
+}
+
 const ReactNativePage: React.FC = () => {
   const [code, setCode] = useState(defaultReactNativeCode);
   const [isVisible, setIsVisible] = useState(false);
   const [dependencies, setDependencies] = useState('expo-constants,react-native-paper@4');
   const [platform, setPlatform] = useState<'web' | 'ios' | 'android' | 'mydevice'>('web');
   const [isCopied, setIsCopied] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [currentPrompt, setCurrentPrompt] = useState('');
   const snackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -76,13 +86,29 @@ const ReactNativePage: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleGeneratedCode = (generatedCode: string) => {
+  const handleGeneratedCode = (generatedCode: string, prompt: string) => {
     setCode(generatedCode);
+    setCurrentPrompt(prompt);
+    
+    // Add to history
+    const newHistoryItem: HistoryItem = {
+      id: Date.now().toString(),
+      code: generatedCode,
+      prompt,
+      timestamp: Date.now()
+    };
+    
+    setHistory(prev => [newHistoryItem, ...prev]);
     
     // Automatically switch back to the Snack preview when new code is generated
     if (snackTimeoutRef.current) {
       clearTimeout(snackTimeoutRef.current);
     }
+  };
+  
+  const loadFromHistory = (historyItem: HistoryItem) => {
+    setCode(historyItem.code);
+    setCurrentPrompt(historyItem.prompt);
   };
   
   const copyCodeToClipboard = () => {
@@ -96,7 +122,15 @@ const ReactNativePage: React.FC = () => {
     const encodedCode = encodeURIComponent(code);
     const encodedDependencies = encodeURIComponent(dependencies);
     const snackUrl = `https://snack.expo.dev/?code=${encodedCode}&dependencies=${encodedDependencies}&platform=${platform}`;
-    window.open(snackUrl, '_blank');
+    
+    if (typeof window !== 'undefined') {
+      window.open(snackUrl, '_blank');
+    }
+  };
+
+  // Format timestamp to readable date
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -104,12 +138,63 @@ const ReactNativePage: React.FC = () => {
       <Header />
       
       <main className={`flex-1 container mx-auto px-4 py-6 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="mb-4">
-          <h1 className="text-2xl font-bold">React Native Playground</h1>
-          <p className="text-muted-foreground">
-            Create and preview React Native components with Expo Snack
-          </p>
+        <div className="mb-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">React Native Playground</h1>
+            <p className="text-muted-foreground">
+              Create and preview React Native components with Expo Snack
+            </p>
+          </div>
+          <button
+            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+          >
+            <History className="h-4 w-4" />
+            <span>History</span>
+            <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-primary text-[10px] text-primary-foreground ml-1">
+              {history.length}
+            </span>
+          </button>
         </div>
+        
+        {isHistoryOpen && history.length > 0 && (
+          <div className="mb-6 bg-muted/40 rounded-lg p-3 border border-border">
+            <h3 className="text-sm font-medium mb-2">Component History</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[200px] overflow-y-auto pr-2">
+              {history.map((item) => (
+                <div 
+                  key={item.id}
+                  className="group flex flex-col p-3 rounded-md border border-border bg-card hover:bg-card/80 cursor-pointer transition-colors"
+                  onClick={() => loadFromHistory(item)}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-medium truncate max-w-[180px]">
+                      {item.prompt.length > 30 ? `${item.prompt.substring(0, 30)}...` : item.prompt}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {formatDate(item.timestamp)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground bg-muted/50 rounded p-1 font-mono line-clamp-2 overflow-hidden">
+                    {item.code.substring(0, 100)}...
+                  </div>
+                  <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex justify-end">
+                    <button 
+                      className="text-[10px] flex items-center gap-0.5 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(item.code);
+                      }}
+                    >
+                      <Clipboard className="h-3 w-3" />
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="flex space-x-2 mb-4">
           <button
@@ -164,7 +249,7 @@ const ReactNativePage: React.FC = () => {
                   <button
                     onClick={copyCodeToClipboard}
                     className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
-                    title="Copy code"
+                    title="Copy code to clipboard"
                   >
                     {isCopied ? (
                       <>
@@ -183,7 +268,8 @@ const ReactNativePage: React.FC = () => {
                     className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     title="Open in Expo Snack"
                   >
-                    <span>Open in Expo Snack</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    <span>Open in Expo</span>
                   </button>
                 </div>
               </div>

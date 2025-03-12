@@ -3,7 +3,7 @@ import { generateReactNativeComponent } from '@/utils/openRouterApi';
 import { cn } from '@/lib/utils';
 
 interface AIReactNativeGeneratorProps {
-  onGenerate: (code: string) => void;
+  onGenerate: (code: string, prompt: string) => void;
   className?: string;
 }
 
@@ -48,8 +48,8 @@ function AIReactNativeGenerator({
         code: result.component
       }]);
       
-      // Pass generated code to parent
-      onGenerate(result.component);
+      // Pass generated code and prompt to parent
+      onGenerate(result.component, prompt);
       
       // Clear prompt for next message
       setPrompt('');
