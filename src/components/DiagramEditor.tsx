@@ -62,9 +62,9 @@ const DiagramEditor: React.FC = () => {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
-  const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
-  const canvasDragStart = useRef({ x: 0, y: 0 });
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const isDraggingCanvas = useRef(false);
+  const lastMousePosition = useRef({ x: 0, y: 0 });
+  const [isPanMode, setIsPanMode] = useState(false);
 
   // Sample data for demonstration
   const initialSampleData: { nodes: ComponentNode[], connections: Connection[] } = {
@@ -122,7 +122,7 @@ const DiagramEditor: React.FC = () => {
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       isDragging.current = false;
-      setIsDraggingCanvas(false);
+      isDraggingCanvas.current = false;
     };
     
     window.addEventListener('mouseup', handleGlobalMouseUp);
@@ -188,24 +188,32 @@ const DiagramEditor: React.FC = () => {
   };
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    // Only start panning when clicking directly on the canvas (not on components)
-    if (e.currentTarget === e.target && editorRef.current) {
-      e.preventDefault();
-      setIsDraggingCanvas(true);
-      canvasDragStart.current = {
-        x: e.clientX - canvasOffset.x,
-        y: e.clientY - canvasOffset.y
-      };
+    // When in pan mode, enable canvas dragging regardless of where you click
+    // Otherwise, only enable when clicking directly on the canvas background
+    if (isPanMode || e.target === e.currentTarget) {
+      isDraggingCanvas.current = true;
+      lastMousePosition.current = { x: e.clientX, y: e.clientY };
+      
+      // Change cursor style to indicate grabbing
+      if (editorRef.current) {
+        editorRef.current.style.cursor = 'grabbing';
+      }
     }
   };
 
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    // Handle panning
-    if (isDraggingCanvas) {
+  const handleMouseMove = (e: React.MouseEvent) => {
+    // Handle canvas dragging
+    if (isDraggingCanvas.current) {
       e.preventDefault();
-      const newX = e.clientX - canvasDragStart.current.x;
-      const newY = e.clientY - canvasDragStart.current.y;
-      setCanvasOffset({ x: newX, y: newY });
+      const dx = e.clientX - lastMousePosition.current.x;
+      const dy = e.clientY - lastMousePosition.current.y;
+      
+      setCanvasOffset(prev => ({
+        x: prev.x + dx,
+        y: prev.y + dy
+      }));
+      
+      lastMousePosition.current = { x: e.clientX, y: e.clientY };
       return;
     }
     
@@ -237,21 +245,80 @@ const DiagramEditor: React.FC = () => {
     }
   };
 
-  const handleCanvasMouseUp = () => {
-    // Stop canvas panning
-    setIsDraggingCanvas(false);
+  const handleMouseUp = (e: React.MouseEvent) => {
+    // End canvas dragging
+    if (isDraggingCanvas.current) {
+      isDraggingCanvas.current = false;
+      if (editorRef.current) {
+        editorRef.current.style.cursor = 'grab';
+      }
+    }
     
-    // Stop node dragging
+    // Handle node drag end
     if (isDragging.current && selectedNode) {
       isDragging.current = false;
       saveToHistory(nodes, connections);
     }
     
-    // Handle connection creation completion
+    // Handle connection completion
     if (connectionStart && isCreatingConnection) {
-      // Existing connection completion code...
+      completeConnection(e);
     }
   };
+
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      isDragging.current = false;
+      
+      if (isDraggingCanvas.current) {
+        isDraggingCanvas.current = false;
+        if (editorRef.current) {
+          editorRef.current.style.cursor = 'grab';
+        }
+      }
+    };
+    
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Space + mouse drag for canvas panning
+      if (e.code === 'Space' && editorRef.current) {
+        editorRef.current.style.cursor = 'grab';
+      }
+      
+      // Arrow keys for small movements
+      const moveAmount = 10;
+      if (e.key === 'ArrowUp') {
+        setCanvasOffset(prev => ({ ...prev, y: prev.y + moveAmount }));
+      } else if (e.key === 'ArrowDown') {
+        setCanvasOffset(prev => ({ ...prev, y: prev.y - moveAmount }));
+      } else if (e.key === 'ArrowLeft') {
+        setCanvasOffset(prev => ({ ...prev, x: prev.x + moveAmount }));
+      } else if (e.key === 'ArrowRight') {
+        setCanvasOffset(prev => ({ ...prev, x: prev.x - moveAmount }));
+      }
+    };
+    
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && editorRef.current) {
+        editorRef.current.style.cursor = 'default';
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   const calculateConnectionPath = (sourceId: string, targetId: string) => {
     const sourceCenter = getNodeCenter(sourceId);
@@ -342,11 +409,38 @@ const DiagramEditor: React.FC = () => {
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (isDragging.current) {
-      isDragging.current = false;
-      saveToHistory(nodes, connections);
-    }
+  const handleBackgroundClick = () => {
+    setSelectedNode(null);
+    setSelectedConnection(null);
+  };
+
+  const updateNodeCode = (nodeId: string, code: string) => {
+    const updatedNodes = nodes.map(node => {
+      if (node.id === nodeId) {
+        return { ...node, code };
+      }
+      return node;
+    });
+    
+    setNodes(updatedNodes);
+    saveToHistory(updatedNodes, connections);
+    
+    // Show feedback
+    setFeedbackMessage('Code updated successfully');
+    setShowFeedback(true);
+    setTimeout(() => setShowFeedback(false), 2000);
+  };
+
+  const updateNodeNotes = (nodeId: string, notes: string) => {
+    const updatedNodes = nodes.map(node => {
+      if (node.id === nodeId) {
+        return { ...node, notes };
+      }
+      return node;
+    });
+    
+    setNodes(updatedNodes);
+    saveToHistory(updatedNodes, connections);
   };
 
   // Find if mouse position is over any node
@@ -360,6 +454,16 @@ const DiagramEditor: React.FC = () => {
       
       return x >= nodeLeft && x <= nodeRight && y >= nodeTop && y <= nodeBottom;
     });
+  };
+
+  const getNodeCenter = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return { x: 0, y: 0 };
+    
+    return {
+      x: node.position.x + 100,
+      y: node.position.y + 40
+    };
   };
 
   const deleteNode = (nodeId: string) => {
@@ -418,48 +522,36 @@ const DiagramEditor: React.FC = () => {
     setTimeout(() => setShowFeedback(false), 3000);
   };
 
-  const getNodeCenter = (nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return { x: 0, y: 0 };
+  // Complete connection creation
+  const completeConnection = (e: React.MouseEvent) => {
+    if (!connectionStart) return;
     
-    return {
-      x: node.position.x + 100,
-      y: node.position.y + 40
-    };
-  };
-
-  const handleBackgroundClick = () => {
-    setSelectedNode(null);
-    setSelectedConnection(null);
-  };
-
-  const updateNodeCode = (nodeId: string, code: string) => {
-    const updatedNodes = nodes.map(node => {
-      if (node.id === nodeId) {
-        return { ...node, code };
+    // Check if ended on a different node
+    if (editorRef.current) {
+      const rect = editorRef.current.getBoundingClientRect();
+      const canvasX = (e.clientX - rect.left - canvasOffset.x) / zoom;
+      const canvasY = (e.clientY - rect.top - canvasOffset.y) / zoom;
+      
+      const targetNode = findNodeAtPosition(canvasX, canvasY);
+      
+      if (targetNode && targetNode.id !== connectionStart) {
+        // Create the connection
+        const newConnection: Connection = {
+          id: `c${Date.now()}`,
+          sourceId: connectionStart,
+          targetId: targetNode.id,
+          label: "connects to"
+        };
+        
+        const newConnections = [...connections, newConnection];
+        setConnections(newConnections);
+        saveToHistory(nodes, newConnections);
+        showFeedbackToast('Connection created successfully');
       }
-      return node;
-    });
+    }
     
-    setNodes(updatedNodes);
-    saveToHistory(updatedNodes, connections);
-    
-    // Show feedback
-    setFeedbackMessage('Code updated successfully');
-    setShowFeedback(true);
-    setTimeout(() => setShowFeedback(false), 2000);
-  };
-
-  const updateNodeNotes = (nodeId: string, notes: string) => {
-    const updatedNodes = nodes.map(node => {
-      if (node.id === nodeId) {
-        return { ...node, notes };
-      }
-      return node;
-    });
-    
-    setNodes(updatedNodes);
-    saveToHistory(updatedNodes, connections);
+    setConnectionStart(null);
+    setIsCreatingConnection(false);
   };
 
   return (
@@ -503,11 +595,16 @@ const DiagramEditor: React.FC = () => {
           </button>
           
           <button 
-            className="flex items-center gap-1 text-xs bg-white border border-border rounded-md px-2 py-1 hover:bg-muted/30"
-            title="Pan canvas"
+            className={`flex items-center gap-1 text-xs ${
+              isPanMode 
+                ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                : 'bg-white border-border text-foreground'
+            } border rounded-md px-2 py-1 hover:bg-muted/30`}
+            title={isPanMode ? "Exit pan mode" : "Enter pan mode"}
+            onClick={() => setIsPanMode(!isPanMode)}
           >
             <Move className="h-3 w-3" />
-            <span>Pan</span>
+            <span>{isPanMode ? "Exit Pan" : "Pan"}</span>
           </button>
         </div>
         
@@ -582,14 +679,20 @@ const DiagramEditor: React.FC = () => {
         
         <div 
           ref={editorRef}
-          className={`relative flex-1 h-[400px] overflow-hidden bg-[#f8fafc] bg-grid-pattern ${isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`relative flex-1 h-[400px] overflow-hidden bg-[#f8fafc] bg-grid-pattern ${
+            isPanMode 
+              ? 'cursor-grab' 
+              : isDraggingCanvas.current 
+                ? 'cursor-grabbing' 
+                : 'cursor-default'
+          }`}
           style={{ 
             backgroundSize: `${20 * zoom}px ${20 * zoom}px`
           }}
           onClick={handleBackgroundClick}
           onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
         >
           {/* Overlay notifications */}
           {isCreatingConnection && (
