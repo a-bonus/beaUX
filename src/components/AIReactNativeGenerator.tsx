@@ -67,9 +67,9 @@ function AIReactNativeGenerator({
     )}>
       <h3 className="text-sm font-medium mb-3">AI React Native Generator</h3>
       
-      {/* Chat History - Now much taller */}
-      <div className="flex-grow overflow-hidden mb-4 flex flex-col">
-        <div className="flex-grow overflow-y-auto p-2 border border-input rounded-md">
+      {/* Chat History - Now with fixed height and scrollable */}
+      <div className="flex-grow overflow-hidden mb-4">
+        <div className="h-[520px] overflow-y-auto p-2 border border-input rounded-md"> 
           {chatHistory.length > 0 ? (
             <div className="space-y-4">
               {chatHistory.map((message, idx) => (
@@ -106,12 +106,12 @@ function AIReactNativeGenerator({
         </div>
       )}
       
-      {/* Input Area - Now at the bottom */}
+      {/* Input Area - Now at the bottom with fixed height */}
       <div className="mt-auto">
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="w-full min-h-[100px] resize-y rounded-md border border-input px-3 py-2"
+          className="w-full h-[100px] resize-none rounded-md border border-input px-3 py-2" 
           placeholder="E.g., Create a React Native card component with an image, title, and description"
         />
         
