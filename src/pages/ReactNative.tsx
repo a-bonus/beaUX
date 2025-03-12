@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import AIReactNativeGenerator from '../components/AIReactNativeGenerator';
 import ExpoSnackPreview from '../components/ExpoSnackPreview';
+import DiagramEditor from '../components/DiagramEditor';
 import { Clipboard, ClipboardCheck, History, ChevronRight, Code, ExternalLink, Send } from 'lucide-react';
+import '../utils/gridPattern.css';
 
 const defaultReactNativeCode = `import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
@@ -243,6 +245,11 @@ const ReactNativePage: React.FC = () => {
               {history.length}
             </span>
           </button>
+        </div>
+        
+        {/* Component Wireframing and Diagramming Section */}
+        <div className="mb-6">
+          <DiagramEditor />
         </div>
         
         {isHistoryOpen && history.length > 0 && (
