@@ -72,8 +72,6 @@ CODE QUALITY:
 - Extract complex logic to separate named functions within the component
 
 Example #1
-import React from 'react';
-
 function TestComponent() {
   return (
     <div style={{ textAlign: 'center', marginTop: '50px' }}>
@@ -85,8 +83,6 @@ function TestComponent() {
 TestComponent.displayName = 'TestComponent';
 
 Example #2
-import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 
 function ProductCard({ name, price, imageUrl, onAddToCart, isOnSale = false }) {
   const [isHovered, setIsHovered] = useState(false);
