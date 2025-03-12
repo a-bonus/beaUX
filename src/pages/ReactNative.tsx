@@ -76,6 +76,7 @@ const ReactNativePage: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState('');
+  const [recentlyAddedDeps, setRecentlyAddedDeps] = useState<string[]>([]);
   const snackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -86,9 +87,54 @@ const ReactNativePage: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  const detectDependenciesFromCode = (code: string): string[] => {
+    const detectedDependencies: string[] = [];
+    const importRegex = /import\s+(?:[\w\s{},*]+)\s+from\s+['"]([^./][^'"]+)['"]/g;
+    
+    // Find all imports that don't start with . or / (external packages)
+    let match;
+    while ((match = importRegex.exec(code)) !== null) {
+      const packageName = match[1];
+      
+      // Skip React and React Native as they're included by default
+      if (packageName !== 'react' && 
+          packageName !== 'react-native' && 
+          !packageName.startsWith('react-native/')) {
+        
+        // For scoped packages, we need the full name (@org/package)
+        detectedDependencies.push(packageName);
+      }
+    }
+    
+    return detectedDependencies;
+  };
+
   const handleGeneratedCode = (generatedCode: string, prompt: string) => {
     setCode(generatedCode);
     setCurrentPrompt(prompt);
+    
+    // Detect and add dependencies automatically
+    const detectedDependencies = detectDependenciesFromCode(generatedCode);
+    if (detectedDependencies.length > 0) {
+      const currentDeps = dependencies.split(',').map(d => d.trim()).filter(Boolean);
+      // Only add dependencies that aren't already included
+      const newDepsToAdd = detectedDependencies.filter(dep => {
+        // Check if dependency or dependency@version is already in the list
+        return !currentDeps.some(existingDep => {
+          const existingPackageName = existingDep.split('@')[0];
+          return existingPackageName === dep;
+        });
+      });
+      
+      if (newDepsToAdd.length > 0) {
+        const newDeps = [...currentDeps, ...newDepsToAdd];
+        setDependencies(newDeps.join(','));
+        // Store recently added dependencies for UI feedback
+        setRecentlyAddedDeps(newDepsToAdd);
+        // Clear the recently added deps after 5 seconds
+        setTimeout(() => setRecentlyAddedDeps([]), 5000);
+      }
+    }
     
     // Add to history
     const newHistoryItem: HistoryItem = {
@@ -288,6 +334,16 @@ const ReactNativePage: React.FC = () => {
                 placeholder="expo-constants,react-native-paper@4"
                 className="w-full rounded-md border border-input px-3 py-2 text-sm"
               />
+              {recentlyAddedDeps.length > 0 && (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md text-xs text-green-700 animate-pulse">
+                  <p className="font-medium">Dependencies automatically added:</p>
+                  <ul className="mt-1 list-disc list-inside">
+                    {recentlyAddedDeps.map((dep, idx) => (
+                      <li key={idx}>{dep}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground mt-2">
                 Comma-separated list of dependencies with optional versions
               </p>
