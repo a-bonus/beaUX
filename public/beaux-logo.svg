@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 200">
+  <!-- Text with gradient fill -->
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1d3b45" />
+      <stop offset="20%" stop-color="#207076" />
+      <stop offset="40%" stop-color="#20adb6" />
+      <stop offset="60%" stop-color="#44a9dd" />
+      <stop offset="80%" stop-color="#7c8cee" />
+      <stop offset="100%" stop-color="#a87bff" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main text -->
+  <text x="50" y="130" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="url(#logoGradient)">
+    beaUX
+  </text>
+</svg>
