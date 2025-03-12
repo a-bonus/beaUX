@@ -40,7 +40,7 @@ export async function generateComponent(prompt: string, apiKey: string): Promise
   const systemPrompt = `You are an expert React developer. Generate clean, functional React components based on user descriptions.
 
 CRITICAL RENDERING REQUIREMENTS:
-- DO NOT include imports
+- DO NOT include imports in your response 
 - Use ONLY the named function syntax: function ComponentName() {} (NOT arrow functions or const declarations)
 - Component name MUST be in PascalCase and descriptive (e.g., TestComponent, UserProfile)
 - DO NOT use export statements - the component will be rendered directly
