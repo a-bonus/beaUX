@@ -62,37 +62,52 @@ function AIReactNativeGenerator({
 
   return (
     <div className={cn(
-      "rounded-lg border border-input p-4 bg-background",
+      "rounded-lg border border-input p-4 bg-background flex flex-col h-[700px]", 
       className
     )}>
       <h3 className="text-sm font-medium mb-3">AI React Native Generator</h3>
       
-      {/* Chat History */}
-      {chatHistory.length > 0 && (
-        <div className="space-y-4 mb-4 max-h-[300px] overflow-y-auto p-2 border border-input rounded-md">
-          {chatHistory.map((message, idx) => (
-            <div 
-              key={idx} 
-              className={cn(
-                "p-3 rounded-lg", 
-                message.role === 'user' 
-                  ? "bg-blue-100 ml-4" 
-                  : "bg-gray-100 mr-4"
-              )}
-            >
-              <p className="text-sm">{message.content}</p>
-              {message.code && (
-                <div className="mt-2 p-2 bg-gray-800 text-white rounded text-xs font-mono overflow-x-auto max-h-[150px] overflow-y-auto">
-                  <pre className="text-xs">{message.code}</pre>
+      {/* Chat History - Now much taller */}
+      <div className="flex-grow overflow-hidden mb-4 flex flex-col">
+        <div className="flex-grow overflow-y-auto p-2 border border-input rounded-md">
+          {chatHistory.length > 0 ? (
+            <div className="space-y-4">
+              {chatHistory.map((message, idx) => (
+                <div 
+                  key={idx} 
+                  className={cn(
+                    "p-3 rounded-lg", 
+                    message.role === 'user' 
+                      ? "bg-blue-100 ml-4" 
+                      : "bg-gray-100 mr-4"
+                  )}
+                >
+                  <p className="text-sm">{message.content}</p>
+                  {message.code && (
+                    <div className="mt-2 p-2 bg-gray-800 text-white rounded text-xs font-mono overflow-x-auto max-h-[300px] overflow-y-auto">
+                      <pre className="text-xs">{message.code}</pre>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
-          ))}
+          ) : (
+            <div className="h-full flex items-center justify-center text-muted-foreground">
+              <p>Your component generation history will appear here</p>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Error message */}
+      {error && (
+        <div className="p-3 bg-red-100 text-red-800 rounded-md mb-4 text-sm">
+          {error}
         </div>
       )}
       
-      {/* Input Area */}
-      <div className="space-y-2">
+      {/* Input Area - Now at the bottom */}
+      <div className="mt-auto">
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -100,36 +115,21 @@ function AIReactNativeGenerator({
           placeholder="E.g., Create a React Native card component with an image, title, and description"
         />
         
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className={cn(
-            "w-full py-2 px-4 rounded-md bg-primary text-primary-foreground text-sm",
-            isGenerating && "opacity-70 cursor-not-allowed"
-          )}
-        >
-          {isGenerating ? "Generating..." : "Generate Component"}
-        </button>
-        
-        {error && (
-          <div className="text-sm text-red-500 mt-2">
-            {error}
-          </div>
-        )}
-      </div>
-      
-      {/* Help Text */}
-      {chatHistory.length === 0 && (
-        <div className="mt-4 text-xs text-muted-foreground">
-          <p>Describe the React Native component you want to create, and the AI will generate it for you.</p>
-          <p className="mt-1">Examples:</p>
-          <ul className="list-disc pl-4 mt-1 space-y-1">
-            <li>A product card with image, title, price and add to cart button</li>
-            <li>A login form with validation and loading state</li>
-            <li>An animated toggle switch with a custom animation</li>
-          </ul>
+        <div className="flex justify-end mt-2">
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating || !prompt.trim()}
+            className={cn(
+              "inline-flex items-center gap-1 px-4 py-2 rounded-md font-medium text-white",
+              isGenerating
+                ? "bg-primary/70 cursor-not-allowed"
+                : "bg-primary hover:bg-primary/90"
+            )}
+          >
+            {isGenerating ? 'Generating...' : 'Generate Component'}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -230,7 +230,7 @@ const ReactNativePage: React.FC = () => {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="flex flex-col space-y-4">
+          <div className="flex flex-col space-y-4 flex-1">
             <AIReactNativeGenerator 
               onGenerate={handleGeneratedCode}
               className="flex-1"
