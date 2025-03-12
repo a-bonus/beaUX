@@ -165,7 +165,7 @@ ProductCard.propTypes = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': window.location.origin, // Required for OpenRouter API
-        'X-Title': 'beaUX Component Generator'
+        'X-Title': 'beaUX'
       },
       body: JSON.stringify({
         model: 'openai/gpt-3.5-turbo', // You can change this to another model
