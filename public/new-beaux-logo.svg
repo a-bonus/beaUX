@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 120">
+  <!-- Gradient definitions -->
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1d3b45" />
+      <stop offset="20%" stop-color="#207076" />
+      <stop offset="40%" stop-color="#20adb6" />
+      <stop offset="60%" stop-color="#44a9dd" />
+      <stop offset="80%" stop-color="#7c8cee" />
+      <stop offset="100%" stop-color="#a87bff" />
+    </linearGradient>
+    
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000" flood-opacity="0.2" />
+    </filter>
+  </defs>
+  
+  <!-- Clean dark background -->
+  <rect width="300" height="120" fill="#0a0e17" rx="8" ry="8" />
+  
+  <!-- Simplified icon to the left of the title -->
+  <g transform="translate(40, 40)">
+    <!-- Component box -->
+    <rect x="0" y="10" width="30" height="20" rx="3" ry="3" fill="none" stroke="#5d6370" stroke-width="1.5" />
+    
+    <!-- Status indicator -->
+    <circle cx="8" cy="20" r="3" fill="#4caf50" />
+    
+    <!-- Connection line -->
+    <path d="M30 20 L40 20" stroke="#5d6370" stroke-width="1.5" />
+    
+    <!-- Hook element -->
+    <rect x="40" y="10" width="30" height="20" rx="10" ry="10" fill="#7c4dff" opacity="0.9" />
+  </g>
+  
+  <!-- Logo text - to the right of the icon -->
+  <text x="120" y="68" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="url(#logoGradient)" filter="url(#softShadow)">
+    beaUX
+  </text>
+</svg>
