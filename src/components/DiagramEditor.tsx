@@ -18,8 +18,13 @@ import {
   Code,
   MousePointer,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  Maximize,
+  Minimize,
+  List,
+  Image
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 interface ComponentNode {
   id: string;
@@ -65,8 +70,7 @@ const DiagramEditor: React.FC = () => {
   
   // State for sidebar collapse and resizing
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(240); // Initial width (60 * 4)
-  const [isResizing, setIsResizing] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(240); // Fixed width now
   
   // State for undo/redo
   const [history, setHistory] = useState<{nodes: ComponentNode[], connections: Connection[]}[]>([]);
@@ -85,14 +89,19 @@ const DiagramEditor: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [currentDiagramName, setCurrentDiagramName] = useState('My Diagram');
   const [savedDiagrams, setSavedDiagrams] = useState<{id: string, name: string, timestamp: number}[]>([]);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPastDiagramsOpen, setIsPastDiagramsOpen] = useState(false);
   
   // Refs for interaction
   const editorRef = useRef<HTMLDivElement>(null);
-  const resizeHandleRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const isDraggingCanvas = useRef(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
+  const diagramContainerRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // Helper function to save to history for undo/redo
   const saveToHistory = (nodeState: ComponentNode[], connectionState: Connection[]) => {
@@ -239,6 +248,41 @@ const DiagramEditor: React.FC = () => {
     reader.readAsText(file);
   };
 
+  // Toggle fullscreen mode
+  const toggleFullscreen = () => {
+    if (!diagramContainerRef.current) return;
+    
+    if (!isFullscreen) {
+      if (diagramContainerRef.current.requestFullscreen) {
+        diagramContainerRef.current.requestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Auto-focus the title input when editing
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+    }
+  }, [isEditingTitle]);
+
   // Sample data with tutorial content
   const initialSampleData: { nodes: ComponentNode[], connections: Connection[] } = {
     nodes: [
@@ -341,44 +385,72 @@ const DiagramEditor: React.FC = () => {
     }
   }, []);
 
-  // Handle sidebar resize
-  const handleResizeMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    document.addEventListener('mousemove', handleResizeMouseMove);
-    document.addEventListener('mouseup', handleResizeMouseUp);
-  };
-
-  const handleResizeMouseMove = (e: MouseEvent) => {
-    if (isResizing) {
-      const newWidth = e.clientX;
-      // Set min and max constraints
-      if (newWidth >= 120 && newWidth <= 500) {
-        setSidebarWidth(newWidth);
-      }
+  // Export diagram as PNG
+  const exportDiagramAsPng = () => {
+    if (!canvasContainerRef.current) return;
+    
+    try {
+      html2canvas(canvasContainerRef.current, {
+        backgroundColor: '#000005',
+        scale: 2, // Higher quality
+        logging: false,
+        useCORS: true,
+        allowTaint: true
+      }).then(canvas => {
+        // Convert to PNG and trigger download
+        const pngUrl = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = pngUrl;
+        a.download = `${currentDiagramName.replace(/\s+/g, '-').toLowerCase()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showFeedbackToast('Diagram exported as PNG');
+      }).catch(err => {
+        console.error('Failed to export PNG:', err);
+        showFeedbackToast('Error exporting diagram');
+      });
+    } catch (err) {
+      console.error('Failed to capture canvas:', err);
+      showFeedbackToast('Error exporting diagram');
     }
   };
 
-  const handleResizeMouseUp = () => {
-    setIsResizing(false);
-    document.removeEventListener('mousemove', handleResizeMouseMove);
-    document.removeEventListener('mouseup', handleResizeMouseUp);
-  };
-
-  // Add event listeners for resize
-  useEffect(() => {
-    return () => {
-      document.removeEventListener('mousemove', handleResizeMouseMove);
-      document.removeEventListener('mouseup', handleResizeMouseUp);
-    };
-  }, [isResizing]);
-
   return (
-    <div className="flex flex-col h-full bg-muted">
+    <div 
+      ref={diagramContainerRef}
+      className={`flex flex-col ${isFullscreen ? 'h-screen' : 'h-full'} bg-muted`}
+    >
       {/* Top Bar */}
       <div className="bg-card border-b border-border p-2 flex items-center justify-between">
         <div className="flex items-center">
-          <h2 className="text-lg font-semibold mr-3">{currentDiagramName}</h2>
+          {isEditingTitle ? (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                setIsEditingTitle(false);
+              }}
+              className="mr-3"
+            >
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={currentDiagramName}
+                onChange={(e) => setCurrentDiagramName(e.target.value)}
+                onBlur={() => setIsEditingTitle(false)}
+                className="text-lg font-semibold bg-muted/30 border border-border rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                autoFocus
+              />
+            </form>
+          ) : (
+            <h2 
+              className="text-lg font-semibold mr-3 cursor-pointer hover:text-primary"
+              onClick={() => setIsEditingTitle(true)}
+              title="Click to edit diagram title"
+            >
+              {currentDiagramName}
+            </h2>
+          )}
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             className="mr-2 p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -389,6 +461,75 @@ const DiagramEditor: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-1">
+          {/* Past Diagrams Button */}
+          <div className="relative">
+            <button 
+              onClick={() => setIsPastDiagramsOpen(!isPastDiagramsOpen)}
+              className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+              title="View Past Diagrams"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            
+            {/* Past Diagrams Dropdown */}
+            {isPastDiagramsOpen && (
+              <div className="absolute right-0 mt-1 w-64 bg-white rounded-md shadow-lg overflow-hidden z-50 border border-border">
+                <div className="py-2 max-h-96 overflow-y-auto">
+                  <div className="px-4 py-2 text-sm font-medium text-muted-foreground border-b border-border">
+                    Your Saved Diagrams
+                  </div>
+                  
+                  {savedDiagrams.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-muted-foreground">
+                      No saved diagrams yet
+                    </div>
+                  ) : (
+                    <>
+                      {savedDiagrams.map(diagram => (
+                        <div
+                          key={diagram.id}
+                          className="flex items-center justify-between px-4 py-2 text-sm hover:bg-muted/50 cursor-pointer"
+                          onClick={() => {
+                            // Load the diagram
+                            const savedDiagram = localStorage.getItem(`beaUX-diagram-${diagram.id}`);
+                            if (savedDiagram) {
+                              try {
+                                const parsed = JSON.parse(savedDiagram);
+                                setNodes(parsed.nodes);
+                                setConnections(parsed.connections);
+                                setCurrentDiagramName(parsed.name || 'Untitled Diagram');
+                                saveToHistory(parsed.nodes, parsed.connections);
+                                showFeedbackToast('Diagram loaded');
+                                setIsPastDiagramsOpen(false);
+                              } catch (err) {
+                                console.error('Failed to load saved diagram:', err);
+                                showFeedbackToast('Error loading diagram');
+                              }
+                            }
+                          }}
+                        >
+                          <div className="flex-1 truncate">
+                            <span className="font-medium">{diagram.name}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {new Date(diagram.timestamp).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => deleteDiagram(diagram.id, e)}
+                            className="p-1 rounded-md hover:bg-red-100 text-red-600"
+                            title="Delete diagram"
+                          >
+                            <Trash className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
           {/* Undo/Redo */}
           <button 
             onClick={() => {
@@ -483,6 +624,22 @@ const DiagramEditor: React.FC = () => {
           >
             <Download className="h-4 w-4" />
           </button>
+          <button 
+            onClick={exportDiagramAsPng}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Export as PNG"
+          >
+            <Image className="h-4 w-4" />
+          </button>
+          
+          {/* Fullscreen Toggle */}
+          <button 
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+          </button>
         </div>
       </div>
       
@@ -495,54 +652,51 @@ const DiagramEditor: React.FC = () => {
           }`}
           style={{ width: isSidebarCollapsed ? 0 : sidebarWidth }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium text-sm">Components</h4>
+          {/* Remove Components title and directly show the component form */}
+          <form className="flex items-center mb-3" onSubmit={(e) => {
+            e.preventDefault();
+            if (!newNodeName.trim()) return;
             
-            <form className="flex items-center" onSubmit={(e) => {
-              e.preventDefault();
-              if (!newNodeName.trim()) return;
-              
-              const newNode: ComponentNode = {
-                id: `n${Date.now()}`,
-                name: newNodeName,
-                position: { x: 200, y: 200 },
-                color: colors[newNodeType],
-                type: newNodeType,
-                code: '',
-                notes: ''
-              };
-              
-              const updatedNodes = [...nodes, newNode];
-              setNodes(updatedNodes);
-              setNewNodeName('');
-              saveToHistory(updatedNodes, connections);
-            }}>
-              <input
-                type="text"
-                value={newNodeName}
-                onChange={(e) => setNewNodeName(e.target.value)}
-                placeholder="New component"
-                className="text-xs border border-border rounded-l-md px-2 py-1 w-24"
-              />
-              <select
-                value={newNodeType}
-                onChange={(e) => setNewNodeType(e.target.value as ComponentNode['type'])}
-                className="text-xs border-y border-r border-border rounded-r-md px-1 py-1 bg-white"
-              >
-                <option value="component">Component</option>
-                <option value="page">Page</option>
-                <option value="hook">Hook</option>
-                <option value="util">Utility</option>
-              </select>
-              <button 
-                type="submit"
-                className="ml-1 bg-primary text-white rounded-md p-1 hover:bg-primary/90"
-                title="Add component"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </form>
-          </div>
+            const newNode: ComponentNode = {
+              id: `n${Date.now()}`,
+              name: newNodeName,
+              position: { x: 200, y: 200 },
+              color: colors[newNodeType],
+              type: newNodeType,
+              code: '',
+              notes: ''
+            };
+            
+            const updatedNodes = [...nodes, newNode];
+            setNodes(updatedNodes);
+            setNewNodeName('');
+            saveToHistory(updatedNodes, connections);
+          }}>
+            <input
+              type="text"
+              value={newNodeName}
+              onChange={(e) => setNewNodeName(e.target.value)}
+              placeholder="New component"
+              className="text-xs border border-border rounded-l-md px-2 py-1.5 w-32"
+            />
+            <select
+              value={newNodeType}
+              onChange={(e) => setNewNodeType(e.target.value as ComponentNode['type'])}
+              className="text-xs border-y border-r border-border rounded-r-md px-1 py-1.5 bg-white"
+            >
+              <option value="component">Component</option>
+              <option value="page">Page</option>
+              <option value="hook">Hook</option>
+              <option value="util">Utility</option>
+            </select>
+            <button 
+              type="submit"
+              className="ml-1 bg-primary text-white rounded-md p-1 hover:bg-primary/90"
+              title="Add component"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </form>
           
           <div className="space-y-1">
             {nodes.map(node => (
@@ -557,12 +711,12 @@ const DiagramEditor: React.FC = () => {
               >
                 <div className="flex items-center gap-1">
                   <span 
-                    className="h-2.5 w-2.5 rounded-full" 
-                    style={{ backgroundColor: node.color }}
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: node.color || '#2dd4bf' }}
                   ></span>
                   <span>{node.name}</span>
                 </div>
-                <div className="flex items-center">
+                <div className="flex">
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -603,20 +757,11 @@ const DiagramEditor: React.FC = () => {
             ))}
           </div>
         </div>
-
-        {/* Resize Handle */}
-        {!isSidebarCollapsed && (
-          <div
-            ref={resizeHandleRef}
-            className="w-1 bg-border hover:bg-primary hover:w-1.5 cursor-col-resize transition-colors duration-150 z-10"
-            onMouseDown={handleResizeMouseDown}
-          />
-        )}
         
         {/* Canvas */}
         <div 
-          ref={editorRef}
-          className={`relative flex-1 h-[500px] overflow-hidden ${
+          ref={canvasContainerRef}
+          className={`relative flex-1 ${isFullscreen ? 'h-[calc(100vh-44px)]' : 'h-[500px]'} overflow-hidden ${
             isPanMode 
               ? 'cursor-grab' 
               : isDraggingCanvas.current 
@@ -641,8 +786,8 @@ const DiagramEditor: React.FC = () => {
               lastMousePosition.current = { x: e.clientX, y: e.clientY };
               
               // Change cursor style to indicate grabbing
-              if (editorRef.current) {
-                editorRef.current.style.cursor = 'grabbing';
+              if (canvasContainerRef.current) {
+                canvasContainerRef.current.style.cursor = 'grabbing';
               }
             }
             
@@ -669,9 +814,10 @@ const DiagramEditor: React.FC = () => {
             }
             
             // Handle node dragging
-            if (isDragging.current && selectedNode && editorRef.current) {
+            if (isDragging.current && selectedNode && canvasContainerRef.current) {
               e.preventDefault(); // Prevent text selection during drag
-              const rect = editorRef.current.getBoundingClientRect();
+              
+              const rect = canvasContainerRef.current.getBoundingClientRect();
               
               const newX = (e.clientX - rect.left - dragOffset.current.x - canvasOffset.x) / zoom;
               const newY = (e.clientY - rect.top - dragOffset.current.y - canvasOffset.y) / zoom;
@@ -688,8 +834,8 @@ const DiagramEditor: React.FC = () => {
             }
             
             // Update mouse position for connection preview
-            if (editorRef.current) {
-              const rect = editorRef.current.getBoundingClientRect();
+            if (canvasContainerRef.current) {
+              const rect = canvasContainerRef.current.getBoundingClientRect();
               const x = (e.clientX - rect.left - canvasOffset.x) / zoom;
               const y = (e.clientY - rect.top - canvasOffset.y) / zoom;
               setMousePosition({ x, y });
@@ -699,8 +845,8 @@ const DiagramEditor: React.FC = () => {
             // End canvas dragging
             if (isDraggingCanvas.current) {
               isDraggingCanvas.current = false;
-              if (editorRef.current) {
-                editorRef.current.style.cursor = isPanMode ? 'grab' : 'default';
+              if (canvasContainerRef.current) {
+                canvasContainerRef.current.style.cursor = isPanMode ? 'grab' : 'default';
               }
             }
             
@@ -713,8 +859,8 @@ const DiagramEditor: React.FC = () => {
             // Handle connection completion
             if (connectionStart && isCreatingConnection) {
               // Check if ended on a node
-              if (editorRef.current) {
-                const rect = editorRef.current.getBoundingClientRect();
+              if (canvasContainerRef.current) {
+                const rect = canvasContainerRef.current.getBoundingClientRect();
                 const canvasX = (e.clientX - rect.left - canvasOffset.x) / zoom;
                 const canvasY = (e.clientY - rect.top - canvasOffset.y) / zoom;
                 
@@ -903,9 +1049,9 @@ const DiagramEditor: React.FC = () => {
                         label: 'uses'
                       };
                       
-                      const updatedConnections = [...connections, newConnection];
-                      setConnections(updatedConnections);
-                      saveToHistory(nodes, updatedConnections);
+                      const newConnections = [...connections, newConnection];
+                      setConnections(newConnections);
+                      saveToHistory(nodes, newConnections);
                       
                       // Provide visual feedback
                       const sourceNode = nodes.find(n => n.id === connectionStart);
@@ -927,9 +1073,9 @@ const DiagramEditor: React.FC = () => {
                   e.stopPropagation(); // Prevent canvas drag when clicking on node
                   
                   // Start dragging the node
-                  if (!isCreatingConnection && editorRef.current) {
+                  if (!isCreatingConnection && canvasContainerRef.current) {
                     isDragging.current = true;
-                    const rect = editorRef.current.getBoundingClientRect();
+                    const rect = canvasContainerRef.current.getBoundingClientRect();
                     
                     dragOffset.current = {
                       x: e.clientX - (node.position.x * zoom + rect.left + canvasOffset.x),
@@ -1015,7 +1161,7 @@ const DiagramEditor: React.FC = () => {
       
       {/* Import JSON Modal */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-20">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold">Import Diagram from JSON</h3>
@@ -1093,6 +1239,111 @@ const DiagramEditor: React.FC = () => {
                 Import Diagram
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Save Modal */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="w-96 bg-card rounded-lg shadow-xl">
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <h3 className="text-lg font-medium">Save Diagram</h3>
+              <button 
+                onClick={() => {
+                  setIsSaveModalOpen(false);
+                  setSaveSuccess(false);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <form 
+              className="p-4" 
+              onSubmit={(e) => {
+                e.preventDefault();
+                
+                try {
+                  // Create a unique ID if this is a new save
+                  const diagramId = `d${Date.now()}`;
+                  
+                  // Prepare the data
+                  const diagramData = {
+                    nodes,
+                    connections,
+                    name: currentDiagramName,
+                    lastSaved: new Date().toISOString()
+                  };
+                  
+                  // Save the diagram data
+                  localStorage.setItem(`beaUX-diagram-${diagramId}`, JSON.stringify(diagramData));
+                  
+                  // Save current diagram as last edited
+                  localStorage.setItem('beaUX-current-diagram', JSON.stringify(diagramData));
+                  
+                  // Add to diagrams list
+                  const updatedDiagrams = [
+                    ...savedDiagrams.filter(diagram => diagram.name !== currentDiagramName), // Remove old version if it exists
+                    { id: diagramId, name: currentDiagramName, timestamp: Date.now() }
+                  ];
+                  
+                  localStorage.setItem('beaUX-saved-diagrams', JSON.stringify(updatedDiagrams));
+                  setSavedDiagrams(updatedDiagrams);
+                  
+                  // Show success
+                  setSaveSuccess(true);
+                  setTimeout(() => {
+                    setIsSaveModalOpen(false);
+                    setSaveSuccess(false);
+                  }, 1500);
+                } catch (err) {
+                  console.error('Failed to save diagram:', err);
+                  showFeedbackToast('Error saving diagram');
+                  setIsSaveModalOpen(false);
+                }
+              }}
+            >
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Diagram Name</label>
+                <input
+                  type="text"
+                  value={currentDiagramName}
+                  onChange={(e) => setCurrentDiagramName(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  placeholder="My Diagram"
+                  required
+                />
+              </div>
+              
+              {saveSuccess ? (
+                <div className="flex items-center justify-center py-2 text-green-600">
+                  <div className="bg-green-50 text-green-600 rounded-full p-1 mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span>Diagram saved successfully!</span>
+                </div>
+              ) : (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsSaveModalOpen(false)}
+                    className="px-4 py-2 mr-2 border border-border rounded-md text-muted-foreground hover:bg-muted"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+                  >
+                    Save Diagram
+                  </button>
+                </div>
+              )}
+            </form>
           </div>
         </div>
       )}
