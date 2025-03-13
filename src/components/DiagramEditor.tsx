@@ -23,7 +23,8 @@ import {
   Minimize,
   List,
   Image,
-  ArrowRight
+  ArrowRight,
+  Link
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
@@ -35,7 +36,7 @@ interface ComponentNode {
   type: 'component' | 'page' | 'hook' | 'util';
   code: string;
   notes: string;
-  height?: number;
+  isCodeCollapsed?: boolean;
 }
 
 interface Connection {
@@ -60,17 +61,18 @@ const DiagramEditor: React.FC = () => {
   // State for editor interaction
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
-  const [expandedNode, setExpandedNode] = useState<string | null>(null);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [cardHeights, setCardHeights] = useState<Record<string, number>>({});
   const [newNodeName, setNewNodeName] = useState('');
   const [newNodeType, setNewNodeType] = useState<ComponentNode['type']>('component');
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [isCreatingConnection, setIsCreatingConnection] = useState(false);
+  const [isDraggingNode, setIsDraggingNode] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [viewportPosition, setViewportPosition] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [isPanMode, setIsPanMode] = useState(false);
-  const [isDraggingNode, setIsDraggingNode] = useState(false); // New state for sticky dragging
   
   // State for undo/redo
   const [history, setHistory] = useState<{nodes: ComponentNode[], connections: Connection[]}[]>([]);
@@ -106,6 +108,9 @@ const DiagramEditor: React.FC = () => {
   const diagramContainerRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Refs for each card to measure height
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Helper function to save to history for undo/redo
   const saveToHistory = (nodeState: ComponentNode[], connectionState: Connection[]) => {
@@ -140,7 +145,7 @@ const DiagramEditor: React.FC = () => {
     if (!node) return { x: 0, y: 0 };
     
     // The node width is fixed at 200px and height is dynamic based on expanded state
-    const nodeHeight = node.height || 80; // Default height if not specified
+    const nodeHeight = 80; // Default height
     return {
       x: node.position.x + 100, // Half the node width (200/2)
       y: node.position.y + nodeHeight / 2   // Dynamic vertical center
@@ -290,6 +295,32 @@ const DiagramEditor: React.FC = () => {
     }
   }, [isEditingTitle]);
 
+  // Add custom CSS styles for resize cursor
+  useEffect(() => {
+    // Create a style element
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      .cursor-nwse-resize {
+        cursor: nwse-resize !important;
+      }
+    `;
+    // Add it to the document head
+    document.head.appendChild(styleEl);
+    
+    // Clean up on unmount
+    return () => {
+      document.head.removeChild(styleEl);
+    };
+  }, []);
+
+  // Add helper function for auto-growing textareas
+  const autoGrowTextarea = (element: HTMLTextAreaElement) => {
+    // Reset height temporarily to get the correct scrollHeight
+    element.style.height = 'auto';
+    // Set the height to scrollHeight to expand based on content
+    element.style.height = `${element.scrollHeight}px`;
+  };
+
   // Sample data with tutorial content
   const initialSampleData: { nodes: ComponentNode[], connections: Connection[] } = {
     nodes: [
@@ -372,7 +403,7 @@ const DiagramEditor: React.FC = () => {
         const parsed = JSON.parse(lastDiagram);
         setNodes(parsed.nodes);
         setConnections(parsed.connections);
-        setCurrentDiagramName(parsed.name || 'Tutorial Diagram');
+        setCurrentDiagramName(parsed.name || 'Untitled Diagram');
         saveToHistory(parsed.nodes, parsed.connections);
         showFeedbackToast('Previous diagram loaded');
       } catch (err) {
@@ -537,6 +568,110 @@ const DiagramEditor: React.FC = () => {
       }
     }
   };
+
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    // If we are in connection creation mode, cancel it
+    if (isCreatingConnection) {
+      setIsCreatingConnection(false);
+      setConnectionStart(null);
+    }
+    
+    // Clear selection
+    setSelectedNode(null); 
+    setSelectedConnection(null);
+  };
+
+  // Effect to measure card heights
+  useEffect(() => {
+    // Function to measure all card heights
+    const measureCardHeights = () => {
+      const newHeights: Record<string, number> = {};
+      nodes.forEach(node => {
+        const element = cardRefs.current[node.id];
+        if (element) {
+          newHeights[node.id] = element.getBoundingClientRect().height;
+        }
+      });
+      setCardHeights(newHeights);
+    };
+
+    // Set up resize observer to measure when DOM changes
+    const resizeObserver = new ResizeObserver(() => {
+      measureCardHeights();
+    });
+    
+    // Observe all card elements
+    Object.values(cardRefs.current).forEach(element => {
+      if (element) {
+        resizeObserver.observe(element);
+      }
+    });
+    
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [nodes, expandedNodes]);
+
+  // Effect to adjust positions when a node is expanded
+  useEffect(() => {
+    // When a node is expanded/collapsed, adjust the positions of nodes below it
+    const adjustPositions = () => {
+      // Sort nodes by vertical position (top to bottom)
+      const sortedNodes = [...nodes].sort((a, b) => a.position.y - b.position.y);
+      const updatedNodes = [...nodes];
+      let hasChanges = false;
+      
+      // For each node (in top-to-bottom order)
+      for (let i = 0; i < sortedNodes.length; i++) {
+        const current = sortedNodes[i];
+        const height = cardHeights[current.id] || 100;
+        
+        // Check all nodes below this one
+        for (let j = i + 1; j < sortedNodes.length; j++) {
+          const nodeBelow = sortedNodes[j];
+          
+          // Check if they overlap horizontally (same column)
+          const horizontalOverlap = 
+            (current.position.x + 200 >= nodeBelow.position.x && 
+             current.position.x <= nodeBelow.position.x + 200);
+          
+          // If they're in the same column and the below node is too close
+          if (horizontalOverlap && 
+              nodeBelow.position.y < current.position.y + height + 20) { // 20px gap
+            
+            // Find the nodeBelow in our updatedNodes array
+            const nodeBelowIndex = updatedNodes.findIndex(n => n.id === nodeBelow.id);
+            if (nodeBelowIndex >= 0) {
+              // Update its position
+              updatedNodes[nodeBelowIndex] = {
+                ...nodeBelow,
+                position: {
+                  ...nodeBelow.position, 
+                  y: current.position.y + height + 20 // Move it below with 20px gap
+                }
+              };
+              
+              // Update the sorted nodes array too to reflect new position
+              sortedNodes[j] = updatedNodes[nodeBelowIndex];
+              hasChanges = true;
+            }
+          }
+        }
+      }
+      
+      // Only update if we made changes
+      if (hasChanges) {
+        setNodes(updatedNodes);
+      }
+    };
+    
+    // Give the DOM time to update before measuring
+    const timer = setTimeout(() => {
+      adjustPositions();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [expandedNodes, cardHeights]);
 
   return (
     <div 
@@ -794,7 +929,7 @@ const DiagramEditor: React.FC = () => {
               type: newNodeType,
               code: '',
               notes: '',
-              height: 80 // Default height
+              isCodeCollapsed: true
             };
             
             const updatedNodes = [...nodes, newNode];
@@ -833,9 +968,7 @@ const DiagramEditor: React.FC = () => {
               <div
                 key={node.id}
                 className={`flex items-center justify-between p-2 rounded-md text-xs ${
-                  selectedNode === node.id 
-                    ? 'bg-blue-50 border border-blue-200' 
-                    : 'bg-gray-50 border border-gray-100'
+                  selectedNode === node.id ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-100'
                 }`}
                 onClick={() => setSelectedNode(node.id === selectedNode ? null : node.id)}
               >
@@ -918,6 +1051,7 @@ const DiagramEditor: React.FC = () => {
           }}
           onMouseMove={handleMouseMove}
           onMouseUp={handleCanvasMouseUp}
+          onClick={handleCanvasClick} // Add click handler here
         >
           {/* Connection creation indicator */}
           {isCreatingConnection && (
@@ -1020,46 +1154,52 @@ const DiagramEditor: React.FC = () => {
                       onClick={() => setSelectedConnection(connection.id)}
                     />
                     
-                    {/* Custom connection icon replacing the arrow */}
-                    <svg 
-                      x={targetCenter.x - 10} 
-                      y={targetCenter.y - 10} 
-                      width="20" 
-                      height="20" 
-                      viewBox="0 0 300 300" 
-                      className="connection-icon"
+                    {/* Custom SVG connection icon at target end */}
+                    <g 
+                      transform={`translate(${targetCenter.x},${targetCenter.y}) rotate(${arrowAngle})`}
+                      onClick={() => setSelectedConnection(connection.id)}
                     >
-                      {/* Gradient definitions */}
-                      <defs>
-                        <linearGradient id={`logoGradient-${connection.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#1d3b45" />
-                          <stop offset="20%" stopColor="#207076" />
-                          <stop offset="40%" stopColor="#20adb6" />
-                          <stop offset="60%" stopColor="#44a9dd" />
-                          <stop offset="80%" stopColor="#7c8cee" />
-                          <stop offset="100%" stopColor="#a87bff" />
-                        </linearGradient>
+                      {/* Move origin back to create the icon in front of the line end */}
+                      <g transform="translate(-15, -5)">
+                        {/* Container rect for better click target */}
+                        <rect 
+                          x="0" 
+                          y="0" 
+                          width="30" 
+                          height="10" 
+                          fill="none" 
+                          stroke="none"
+                        />
                         
-                        <filter id={`softShadow-${connection.id}`} x="-10%" y="-10%" width="120%" height="120%">
-                          <feDropShadow dx="0" dy="1" stdDeviation="1" floodColor="#000" floodOpacity="0.2" />
-                        </filter>
-                      </defs>
-                      
-                      {/* Simplified icon */}
-                      <g transform="translate(100, 40)">
-                        {/* Component box */}
-                        <rect x="0" y="10" width="30" height="20" rx="3" ry="3" fill="none" stroke={selectedConnection === connection.id ? '#5eead4' : '#5d6370'} strokeWidth="1.5" />
+                        {/* Connection path */}
+                        <path 
+                          d="M5,5 C8,2 12,8 15,5 C18,2 22,8 25,5" 
+                          stroke={selectedConnection === connection.id ? '#5eead4' : '#94a3b8'} 
+                          fill="none"
+                          strokeWidth="1.5"
+                        />
                         
-                        {/* Status indicator */}
-                        <circle cx="8" cy="20" r="3" fill={selectedConnection === connection.id ? '#5eead4' : '#4caf50'} />
+                        {/* End point */}
+                        <circle 
+                          cx="25" 
+                          cy="5" 
+                          r="2" 
+                          fill={selectedConnection === connection.id ? '#5eead480' : '#f59e0b80'}
+                          stroke={selectedConnection === connection.id ? '#5eead4' : '#94a3b8'} 
+                          strokeWidth="1"
+                        />
                         
-                        {/* Connection line */}
-                        <path d="M30 20 L40 20" stroke={selectedConnection === connection.id ? '#5eead4' : '#5d6370'} strokeWidth="1.5" />
-                        
-                        {/* Hook element */}
-                        <rect x="40" y="10" width="30" height="20" rx="10" ry="10" fill={selectedConnection === connection.id ? '#5eead4' : '#7c4dff'} opacity="0.9" />
+                        {/* Start point */}
+                        <circle 
+                          cx="5" 
+                          cy="5" 
+                          r="2" 
+                          fill={selectedConnection === connection.id ? '#5eead480' : '#3b82f680'}
+                          stroke={selectedConnection === connection.id ? '#5eead4' : '#94a3b8'} 
+                          strokeWidth="1"
+                        />
                       </g>
-                    </svg>
+                    </g>
                     
                     {/* Connection label */}
                     <text
@@ -1079,19 +1219,17 @@ const DiagramEditor: React.FC = () => {
 
             {/* Component Nodes Layer */}
             {nodes.map(node => (
-              <div
+              <div 
                 key={node.id}
+                ref={el => cardRefs.current[node.id] = el}
                 className={`absolute pointer-events-auto cursor-pointer rounded-md border galaxy-node ${
-                  selectedNode === node.id 
-                    ? connectionStart === node.id
-                      ? 'border-teal-400 shadow-glow-teal bg-black/90'
-                      : 'border-teal-400 shadow-glow-teal' 
-                    : 'border-gray-800 shadow-space'
-                } ${connectionStart === node.id ? 'ring-2 ring-teal-500 ring-opacity-70' : ''} bg-black/85 backdrop-blur-sm p-3 w-[200px]`}
+                  selectedNode === node.id ? 'border-2 border-teal-400' : 
+                  isDraggingNode && selectedNode === node.id ? 'border-2 border-indigo-400' : 
+                  'border border-gray-700/50'
+                } bg-black/60 backdrop-blur-sm p-3 w-[200px] transition-all duration-300 ease-in-out`}
                 style={{
                   left: `${node.position.x}px`,
                   top: `${node.position.y}px`,
-                  height: expandedNode === node.id && node.height ? `${node.height}px` : 'auto'
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1146,7 +1284,7 @@ const DiagramEditor: React.FC = () => {
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: node.color || '#2dd4bf' }}
                     ></span>
-                    {expandedNode === node.id ? (
+                    {expandedNodes.has(node.id) ? (
                       <input
                         type="text"
                         className="font-medium text-sm text-gray-100 bg-transparent border-b border-gray-700 focus:border-teal-500 outline-none w-full"
@@ -1159,6 +1297,7 @@ const DiagramEditor: React.FC = () => {
                             }
                             return n;
                           });
+                          
                           setNodes(updatedNodes);
                         }}
                         onBlur={() => saveToHistory(nodes, connections)}
@@ -1182,33 +1321,44 @@ const DiagramEditor: React.FC = () => {
                       className="p-1 rounded-md hover:bg-indigo-800/50 text-gray-300 mr-1"
                       title="Create connection"
                     >
-                      <ArrowRight className="h-3.5 w-3.5" />
+                      <Link className="h-3.5 w-3.5" />
                     </button>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        setExpandedNode(expandedNode === node.id ? null : node.id);
+                        // Update expanded nodes set instead of single state
+                        const newExpandedNodes = new Set(expandedNodes);
+                        if (newExpandedNodes.has(node.id)) {
+                          newExpandedNodes.delete(node.id);
+                        } else {
+                          newExpandedNodes.add(node.id);
+                        }
+                        setExpandedNodes(newExpandedNodes);
                       }}
                       className="p-1 rounded-md hover:bg-indigo-800/50 text-gray-300"
-                      title={expandedNode === node.id ? "Collapse" : "Expand"}
+                      title={expandedNodes.has(node.id) ? "Collapse" : "Expand"}
                     >
                       <ChevronRight className={`h-3.5 w-3.5 transform transition-transform ${
-                        expandedNode === node.id ? 'rotate-90' : ''
+                        expandedNodes.has(node.id) ? 'rotate-90' : ''
                       }`} />
                     </button>
                   </div>
                 </div>
                 
                 {/* Component expanded details (notes & code) */}
-                {expandedNode === node.id && (
-                  <div className="mt-2 border-t border-gray-800/50 pt-2">
+                {expandedNodes.has(node.id) && (
+                  <div className="mt-2 border-t border-gray-800/50 pt-2 relative">
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-[10px] font-medium text-gray-300">Notes:</label>
                     </div>
                     <textarea
-                      className="w-full h-20 text-xs bg-black/90 p-2 rounded-sm border border-gray-800/50 resize-none text-gray-200"
+                      className="w-full text-xs bg-black/70 p-2 rounded-sm border border-gray-800/50 resize-none text-gray-200"
+                      style={{ minHeight: '80px' }}
                       value={node.notes || ''}
                       onChange={(e) => {
+                        // Auto-grow the textarea
+                        autoGrowTextarea(e.target);
+                        
                         const updatedNodes = nodes.map(n => {
                           if (n.id === node.id) {
                             return { ...n, notes: e.target.value };
@@ -1218,7 +1368,11 @@ const DiagramEditor: React.FC = () => {
                         
                         setNodes(updatedNodes);
                       }}
-                      onBlur={() => saveToHistory(nodes, connections)}
+                      onFocus={(e) => autoGrowTextarea(e.target)}
+                      onBlur={(e) => {
+                        autoGrowTextarea(e.target);
+                        saveToHistory(nodes, connections);
+                      }}
                       placeholder="Add notes about this component..."
                       onClick={(e) => e.stopPropagation()}
                     ></textarea>
@@ -1226,59 +1380,54 @@ const DiagramEditor: React.FC = () => {
                     <div className="mt-2">
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[10px] font-medium text-gray-300">Component Code:</label>
+                        <button
+                          className="text-[10px] text-gray-400 hover:text-white px-1.5 py-0.5 rounded hover:bg-gray-800"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedNodes = nodes.map(n => {
+                              if (n.id === node.id) {
+                                return { 
+                                  ...n, 
+                                  isCodeCollapsed: !n.isCodeCollapsed,
+                                };
+                              }
+                              return n;
+                            });
+                            setNodes(updatedNodes);
+                            saveToHistory(updatedNodes, connections);
+                          }}
+                        >
+                          {node.isCodeCollapsed ? 'Show' : 'Hide'}
+                        </button>
                       </div>
-                      <textarea
-                        className="w-full h-24 text-[10px] bg-black/90 p-2 rounded-sm font-mono border border-gray-800/50 resize-none text-gray-200"
-                        value={node.code || ''}
-                        onChange={(e) => {
-                          const updatedNodes = nodes.map(n => {
-                            if (n.id === node.id) {
-                              return { ...n, code: e.target.value };
-                            }
-                            return n;
-                          });
-                          
-                          setNodes(updatedNodes);
-                        }}
-                        onBlur={() => saveToHistory(nodes, connections)}
-                        placeholder="// Enter component code here..."
-                        onClick={(e) => e.stopPropagation()}
-                      ></textarea>
-                    </div>
-                    
-                    {/* Resize handle */}
-                    <div 
-                      className="mt-2 h-4 border-t border-gray-800/50 flex justify-center cursor-ns-resize"
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        const startY = e.clientY;
-                        const startHeight = node.height || 220; // Default expanded height
-                        
-                        const handleMouseMove = (moveEvent: MouseEvent) => {
-                          const deltaY = moveEvent.clientY - startY;
-                          const newHeight = Math.max(220, startHeight + deltaY); // Minimum height
-                          
-                          const updatedNodes = nodes.map(n => {
-                            if (n.id === node.id) {
-                              return { ...n, height: newHeight };
-                            }
-                            return n;
-                          });
-                          
-                          setNodes(updatedNodes);
-                        };
-                        
-                        const handleMouseUp = () => {
-                          document.removeEventListener('mousemove', handleMouseMove);
-                          document.removeEventListener('mouseup', handleMouseUp);
-                          saveToHistory(nodes, connections);
-                        };
-                        
-                        document.addEventListener('mousemove', handleMouseMove);
-                        document.addEventListener('mouseup', handleMouseUp);
-                      }}
-                    >
-                      <div className="w-8 h-1 bg-gray-700 rounded-full"></div>
+                      
+                      {!node.isCodeCollapsed && (
+                        <textarea
+                          className="w-full text-[10px] bg-black/70 p-2 rounded-sm font-mono border border-gray-800/50 resize-none text-gray-200"
+                          style={{ minHeight: '100px' }}
+                          value={node.code || ''}
+                          onChange={(e) => {
+                            // Auto-grow the textarea
+                            autoGrowTextarea(e.target);
+                            
+                            const updatedNodes = nodes.map(n => {
+                              if (n.id === node.id) {
+                                return { ...n, code: e.target.value };
+                              }
+                              return n;
+                            });
+                            
+                            setNodes(updatedNodes);
+                          }}
+                          onFocus={(e) => autoGrowTextarea(e.target)}
+                          onBlur={(e) => {
+                            autoGrowTextarea(e.target);
+                            saveToHistory(nodes, connections);
+                          }}
+                          placeholder="// Enter component code here..."
+                          onClick={(e) => e.stopPropagation()}
+                        ></textarea>
+                      )}
                     </div>
                   </div>
                 )}
