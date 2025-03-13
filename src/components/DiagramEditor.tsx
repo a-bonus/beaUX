@@ -68,10 +68,7 @@ const DiagramEditor: React.FC = () => {
   const [zoom, setZoom] = useState(1);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [isPanMode, setIsPanMode] = useState(false);
-  
-  // State for sidebar collapse and resizing
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(240); // Fixed width now
+  const [isDraggingNode, setIsDraggingNode] = useState(false); // New state for sticky dragging
   
   // State for undo/redo
   const [history, setHistory] = useState<{nodes: ComponentNode[], connections: Connection[]}[]>([]);
@@ -93,6 +90,10 @@ const DiagramEditor: React.FC = () => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPastDiagramsOpen, setIsPastDiagramsOpen] = useState(false);
+  
+  // State for sidebar collapse and resizing
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(240); // Fixed width now
   
   // Refs for interaction
   const editorRef = useRef<HTMLDivElement>(null);
@@ -442,34 +443,94 @@ const DiagramEditor: React.FC = () => {
         lastMousePosition.current = { x: e.clientX, y: e.clientY };
       }
       
-      // Handle node dragging
-      if (isDragging.current && selectedNode && canvasContainerRef.current) {
+      // Handle node dragging with sticky selection
+      if (isDraggingNode && selectedNode && canvasContainerRef.current) {
         e.preventDefault(); // Prevent text selection during drag
         
         const rect = canvasContainerRef.current.getBoundingClientRect();
         
-        const newX = (e.clientX - rect.left - dragOffset.current.x - canvasOffset.x) / zoom;
-        const newY = (e.clientY - rect.top - dragOffset.current.y - canvasOffset.y) / zoom;
+        // Calculate new position based on mouse movement
+        const mouseX = e.clientX - rect.left - canvasOffset.x;
+        const mouseY = e.clientY - rect.top - canvasOffset.y; 
         
-        setNodes(prevNodes => {
-          // Create a new nodes array with the updated position
-          const updatedNodes = prevNodes.map(node => {
-            if (node.id === selectedNode) {
-              return {
-                ...node,
-                position: { x: newX, y: newY }
-              };
-            }
-            return node;
-          });
+        // Get the node's dimensions
+        const selectedNodeObj = nodes.find(n => n.id === selectedNode);
+        if (selectedNodeObj) {
+          const newX = mouseX / zoom - 100; // Half the node width
+          const newY = mouseY / zoom - 40;  // Half the node height
           
-          // Force React to re-render connections by updating all nodes
-          return [...updatedNodes];
+          // Update only the currently selected node
+          setNodes(prevNodes => 
+            prevNodes.map(node => 
+              node.id === selectedNode 
+                ? { ...node, position: { x: newX, y: newY } } 
+                : node
+            )
+          );
+        }
+      }
+    }
+  };
+
+  const handleCanvasMouseUp = (e: React.MouseEvent) => {
+    // End canvas dragging
+    if (isDraggingCanvas.current) {
+      isDraggingCanvas.current = false;
+      if (canvasContainerRef.current) {
+        canvasContainerRef.current.style.cursor = isPanMode ? 'grab' : 'default';
+      }
+    }
+    
+    // We don't end node dragging on mouse up with the sticky approach
+    // isDragging.current = false is now handled by the node click handler
+    
+    // Save history when dragging ends
+    if (isDraggingNode && selectedNode) {
+      saveToHistory(nodes, connections);
+    }
+    
+    // Handle connection completion
+    if (connectionStart && isCreatingConnection) {
+      // Check if ended on a node
+      if (canvasContainerRef.current) {
+        const rect = canvasContainerRef.current.getBoundingClientRect();
+        const canvasX = (e.clientX - rect.left - canvasOffset.x) / zoom;
+        const canvasY = (e.clientY - rect.top - canvasOffset.y) / zoom;
+        
+        // Find if mouse is over any node
+        const targetNode = nodes.find(node => {
+          const nodeLeft = node.position.x - 5;
+          const nodeRight = node.position.x + 205; // 200px width + 5px padding
+          const nodeTop = node.position.y - 5;
+          const nodeBottom = node.position.y + 105; // Approximate height + 5px padding
+          
+          return canvasX >= nodeLeft && canvasX <= nodeRight && 
+                canvasY >= nodeTop && canvasY <= nodeBottom;
         });
         
-        // Force update connections during dragging to prevent disappearing
-        const forceUpdateConnections = [...connections];
-        setConnections(forceUpdateConnections);
+        if (targetNode && targetNode.id !== connectionStart) {
+          // Create the connection
+          const newConnection: Connection = {
+            id: `c${Date.now()}`,
+            sourceId: connectionStart,
+            targetId: targetNode.id,
+            label: "uses"
+          };
+          
+          const newConnections = [...connections, newConnection];
+          setConnections(newConnections);
+          saveToHistory(nodes, newConnections);
+          
+          // Provide visual feedback
+          const sourceNode = nodes.find(n => n.id === connectionStart);
+          if (sourceNode) {
+            showFeedbackToast(`Connected ${sourceNode.name} to ${targetNode.name}`);
+          }
+        }
+        
+        // Reset connection creation state
+        setIsCreatingConnection(false);
+        setConnectionStart(null);
       }
     }
   };
@@ -808,7 +869,7 @@ const DiagramEditor: React.FC = () => {
               ? 'cursor-grab' 
               : isDraggingCanvas.current 
                 ? 'cursor-grabbing' 
-                : 'cursor-default'
+                : isDraggingNode ? 'cursor-move' : 'cursor-default'
           }`}
           style={{ 
             backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
@@ -835,71 +896,17 @@ const DiagramEditor: React.FC = () => {
             
             // Clear selection when clicking on empty canvas area
             if (e.target === e.currentTarget) {
+              // If we are in dragging mode, end it and save history
+              if (isDraggingNode) {
+                setIsDraggingNode(false);
+                saveToHistory(nodes, connections);
+              }
               setSelectedNode(null);
               setSelectedConnection(null);
             }
           }}
           onMouseMove={handleMouseMove}
-          onMouseUp={(e) => {
-            // End canvas dragging
-            if (isDraggingCanvas.current) {
-              isDraggingCanvas.current = false;
-              if (canvasContainerRef.current) {
-                canvasContainerRef.current.style.cursor = isPanMode ? 'grab' : 'default';
-              }
-            }
-            
-            // Handle node drag end
-            if (isDragging.current && selectedNode) {
-              isDragging.current = false;
-              saveToHistory(nodes, connections);
-            }
-            
-            // Handle connection completion
-            if (connectionStart && isCreatingConnection) {
-              // Check if ended on a node
-              if (canvasContainerRef.current) {
-                const rect = canvasContainerRef.current.getBoundingClientRect();
-                const canvasX = (e.clientX - rect.left - canvasOffset.x) / zoom;
-                const canvasY = (e.clientY - rect.top - canvasOffset.y) / zoom;
-                
-                // Find if mouse is over any node
-                const targetNode = nodes.find(node => {
-                  const nodeLeft = node.position.x - 5;
-                  const nodeRight = node.position.x + 205; // 200px width + 5px padding
-                  const nodeTop = node.position.y - 5;
-                  const nodeBottom = node.position.y + 105; // Approximate height + 5px padding
-                  
-                  return canvasX >= nodeLeft && canvasX <= nodeRight && 
-                         canvasY >= nodeTop && canvasY <= nodeBottom;
-                });
-                
-                if (targetNode && targetNode.id !== connectionStart) {
-                  // Create the connection
-                  const newConnection: Connection = {
-                    id: `c${Date.now()}`,
-                    sourceId: connectionStart,
-                    targetId: targetNode.id,
-                    label: "uses"
-                  };
-                  
-                  const newConnections = [...connections, newConnection];
-                  setConnections(newConnections);
-                  saveToHistory(nodes, newConnections);
-                  
-                  // Provide visual feedback
-                  const sourceNode = nodes.find(n => n.id === connectionStart);
-                  if (sourceNode) {
-                    showFeedbackToast(`Connected ${sourceNode.name} to ${targetNode.name}`);
-                  }
-                }
-                
-                // Reset connection creation state
-                setIsCreatingConnection(false);
-                setConnectionStart(null);
-              }
-            }
-          }}
+          onMouseUp={handleCanvasMouseUp}
         >
           {/* Connection creation indicator */}
           {isCreatingConnection && (
@@ -1069,26 +1076,21 @@ const DiagramEditor: React.FC = () => {
                     setIsCreatingConnection(false);
                     setConnectionStart(null);
                   } else {
-                    // If not creating a connection, just select the node
-                    setSelectedNode(node.id === selectedNode ? null : node.id);
-                    setSelectedConnection(null);
+                    // Toggle dragging mode with sticky selection
+                    if (selectedNode === node.id && isDraggingNode) {
+                      // If already in dragging mode for this node, end it and save history
+                      setIsDraggingNode(false);
+                      saveToHistory(nodes, connections);
+                    } else {
+                      // Either selecting a new node or enabling drag mode for selected node
+                      setSelectedNode(node.id);
+                      setSelectedConnection(null);
+                      setIsDraggingNode(true);
+                    }
                   }
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation(); // Prevent canvas drag when clicking on node
-                  
-                  // Start dragging the node
-                  if (!isCreatingConnection && canvasContainerRef.current) {
-                    isDragging.current = true;
-                    setSelectedNode(node.id); // Ensure node is selected when dragging starts
-                    
-                    const rect = canvasContainerRef.current.getBoundingClientRect();
-                    
-                    dragOffset.current = {
-                      x: e.clientX - (node.position.x * zoom + rect.left + canvasOffset.x),
-                      y: e.clientY - (node.position.y * zoom + rect.top + canvasOffset.y)
-                    };
-                  }
                 }}
               >
                 <div className="flex items-center justify-between mb-2">
