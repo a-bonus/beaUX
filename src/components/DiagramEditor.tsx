@@ -24,7 +24,8 @@ import {
   List,
   Image,
   ArrowRight,
-  Link
+  Link,
+  Check
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
@@ -33,7 +34,7 @@ interface ComponentNode {
   name: string;
   position: { x: number; y: number };
   color: string;
-  type: 'component' | 'page' | 'hook' | 'util';
+  type: 'component' | 'page' | 'hook' | 'util' | 'notes';
   code: string;
   notes: string;
   isCodeCollapsed?: boolean;
@@ -51,6 +52,7 @@ const colors = {
   page: '#10b981',      // green
   hook: '#8b5cf6',      // purple
   util: '#f59e0b',      // amber
+  notes: '#ec4899'      // pink
 };
 
 const DiagramEditor: React.FC = () => {
@@ -673,6 +675,33 @@ const DiagramEditor: React.FC = () => {
     return () => clearTimeout(timer);
   }, [expandedNodes, cardHeights]);
 
+  // Add color picker functionality when a node is selected
+  const handleNodeColorChange = (nodeId: string, newColor: string) => {
+    const updatedNodes = nodes.map(node => {
+      if (node.id === nodeId) {
+        return { ...node, color: newColor };
+      }
+      return node;
+    });
+    
+    setNodes(updatedNodes);
+    saveToHistory(updatedNodes, connections);
+  };
+
+  // Predefined color options
+  const colorOptions = [
+    '#3b82f6', // blue
+    '#10b981', // green
+    '#8b5cf6', // purple
+    '#f59e0b', // amber
+    '#ec4899', // pink
+    '#ef4444', // red
+    '#06b6d4', // cyan
+    '#f97316', // orange
+    '#6366f1', // indigo
+    '#84cc16', // lime
+  ];
+
   return (
     <div 
       ref={diagramContainerRef}
@@ -953,6 +982,7 @@ const DiagramEditor: React.FC = () => {
               <option value="page">Page</option>
               <option value="hook">Hook</option>
               <option value="util">Utility</option>
+              <option value="notes">Notes</option>
             </select>
             <button 
               type="submit"
@@ -1003,6 +1033,88 @@ const DiagramEditor: React.FC = () => {
               </div>
             ))}
           </div>
+          
+          {/* Node Settings Panel - shows when a node is selected */}
+          {selectedNode && (
+            <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+              <h3 className="text-xs font-medium mb-2">Node Settings</h3>
+              
+              {/* Color picker */}
+              <div className="mb-3">
+                <label className="text-xs text-gray-500 block mb-1">Color</label>
+                <div className="flex flex-wrap gap-1">
+                  {colorOptions.map(color => (
+                    <button
+                      key={color}
+                      className={`w-5 h-5 rounded-full transition-all ${
+                        nodes.find(n => n.id === selectedNode)?.color === color ? 
+                        'ring-2 ring-offset-1 ring-gray-400' : ''
+                      }`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => handleNodeColorChange(selectedNode, color)}
+                      title={`Change to ${color}`}
+                    />
+                  ))}
+                  
+                  {/* Custom color input */}
+                  <input
+                    type="color"
+                    className="w-5 h-5 rounded-full cursor-pointer"
+                    value={nodes.find(n => n.id === selectedNode)?.color || '#000000'}
+                    onChange={(e) => handleNodeColorChange(selectedNode, e.target.value)}
+                    title="Custom color"
+                  />
+                </div>
+              </div>
+              
+              {/* Node type */}
+              <div className="mb-3">
+                <label className="text-xs text-gray-500 block mb-1">Type</label>
+                <select
+                  className="w-full text-xs border border-gray-300 rounded px-1 py-1"
+                  value={nodes.find(n => n.id === selectedNode)?.type || 'component'}
+                  onChange={(e) => {
+                    const type = e.target.value as ComponentNode['type'];
+                    const updatedNodes = nodes.map(node => {
+                      if (node.id === selectedNode) {
+                        // Update type but keep custom color if already set
+                        return { ...node, type };
+                      }
+                      return node;
+                    });
+                    setNodes(updatedNodes);
+                    saveToHistory(updatedNodes, connections);
+                  }}
+                >
+                  <option value="component">Component</option>
+                  <option value="page">Page</option>
+                  <option value="hook">Hook</option>
+                  <option value="util">Utility</option>
+                  <option value="notes">Notes</option>
+                </select>
+              </div>
+              
+              {/* Delete button */}
+              <button
+                onClick={() => {
+                  // Filter nodes and connections that don't involve this node
+                  const newNodes = nodes.filter(n => n.id !== selectedNode);
+                  const newConnections = connections.filter(
+                    c => c.sourceId !== selectedNode && c.targetId !== selectedNode
+                  );
+                  
+                  setNodes(newNodes);
+                  setConnections(newConnections);
+                  setSelectedNode(null);
+                  saveToHistory(newNodes, newConnections);
+                }}
+                className="w-full text-xs text-white bg-red-500 hover:bg-red-600 rounded px-2 py-1 flex items-center justify-center gap-1"
+              >
+                <Trash className="h-3 w-3" />
+                Delete Node
+              </button>
+            </div>
+          )}
         </div>
         
         {/* Canvas */}
@@ -1670,6 +1782,7 @@ I need you to analyze my React component architecture and generate a JSON repres
    - Pages: #10b981 (green)
    - Hooks: #8b5cf6 (purple)
    - Utils: #f59e0b (amber)
+   - Notes: #ec4899 (pink)
 6. Include brief code snippets and notes
 
 ## My Component Architecture
