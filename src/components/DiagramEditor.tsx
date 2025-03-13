@@ -22,7 +22,8 @@ import {
   Maximize,
   Minimize,
   List,
-  Image
+  Image,
+  ArrowRight
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
@@ -134,6 +135,8 @@ const DiagramEditor: React.FC = () => {
   const getNodeCenter = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return { x: 0, y: 0 };
+    
+    // The node width is fixed at 200px and height is approximately 80px
     return {
       x: node.position.x + 100, // Half the node width (200/2)
       y: node.position.y + 40   // Approximate vertical center
@@ -416,6 +419,61 @@ const DiagramEditor: React.FC = () => {
     }
   };
 
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (canvasContainerRef.current) {
+      const rect = canvasContainerRef.current.getBoundingClientRect();
+      
+      // Update mouse position for connection previews
+      const rawX = (e.clientX - rect.left - canvasOffset.x) / zoom;
+      const rawY = (e.clientY - rect.top - canvasOffset.y) / zoom;
+      
+      setMousePosition({ x: rawX, y: rawY });
+      
+      // Handle canvas dragging
+      if (isDraggingCanvas.current && canvasContainerRef.current) {
+        const deltaX = e.clientX - lastMousePosition.current.x;
+        const deltaY = e.clientY - lastMousePosition.current.y;
+        
+        setCanvasOffset(prev => ({
+          x: prev.x + deltaX,
+          y: prev.y + deltaY
+        }));
+        
+        lastMousePosition.current = { x: e.clientX, y: e.clientY };
+      }
+      
+      // Handle node dragging
+      if (isDragging.current && selectedNode && canvasContainerRef.current) {
+        e.preventDefault(); // Prevent text selection during drag
+        
+        const rect = canvasContainerRef.current.getBoundingClientRect();
+        
+        const newX = (e.clientX - rect.left - dragOffset.current.x - canvasOffset.x) / zoom;
+        const newY = (e.clientY - rect.top - dragOffset.current.y - canvasOffset.y) / zoom;
+        
+        setNodes(prevNodes => {
+          // Create a new nodes array with the updated position
+          const updatedNodes = prevNodes.map(node => {
+            if (node.id === selectedNode) {
+              return {
+                ...node,
+                position: { x: newX, y: newY }
+              };
+            }
+            return node;
+          });
+          
+          // Force React to re-render connections by updating all nodes
+          return [...updatedNodes];
+        });
+        
+        // Force update connections during dragging to prevent disappearing
+        const forceUpdateConnections = [...connections];
+        setConnections(forceUpdateConnections);
+      }
+    }
+  };
+
   return (
     <div 
       ref={diagramContainerRef}
@@ -652,7 +710,7 @@ const DiagramEditor: React.FC = () => {
           }`}
           style={{ width: isSidebarCollapsed ? 0 : sidebarWidth }}
         >
-          {/* Remove Components title and directly show the component form */}
+          {/* Component form */}
           <form className="flex items-center mb-3" onSubmit={(e) => {
             e.preventDefault();
             if (!newNodeName.trim()) return;
@@ -705,7 +763,7 @@ const DiagramEditor: React.FC = () => {
                 className={`flex items-center justify-between p-2 rounded-md text-xs ${
                   selectedNode === node.id 
                     ? 'bg-blue-50 border border-blue-200' 
-                    : 'hover:bg-muted/50'
+                    : 'bg-gray-50 border border-gray-100'
                 }`}
                 onClick={() => setSelectedNode(node.id === selectedNode ? null : node.id)}
               >
@@ -717,22 +775,6 @@ const DiagramEditor: React.FC = () => {
                   <span>{node.name}</span>
                 </div>
                 <div className="flex">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Create connection from this node
-                      setSelectedNode(node.id);
-                      setConnectionStart(node.id);
-                      setIsCreatingConnection(true);
-                      
-                      // Show visual feedback
-                      showFeedbackToast(`Select another component to connect from ${node.name}`);
-                    }}
-                    className="p-1 rounded-md hover:bg-blue-100 text-blue-600 mr-1"
-                    title="Create connection"
-                  >
-                    <ChevronRight className="h-3 w-3" />
-                  </button>
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -797,50 +839,7 @@ const DiagramEditor: React.FC = () => {
               setSelectedConnection(null);
             }
           }}
-          onMouseMove={(e) => {
-            // Handle canvas dragging
-            if (isDraggingCanvas.current) {
-              e.preventDefault();
-              const dx = e.clientX - lastMousePosition.current.x;
-              const dy = e.clientY - lastMousePosition.current.y;
-              
-              setCanvasOffset(prev => ({
-                x: prev.x + dx,
-                y: prev.y + dy
-              }));
-              
-              lastMousePosition.current = { x: e.clientX, y: e.clientY };
-              return;
-            }
-            
-            // Handle node dragging
-            if (isDragging.current && selectedNode && canvasContainerRef.current) {
-              e.preventDefault(); // Prevent text selection during drag
-              
-              const rect = canvasContainerRef.current.getBoundingClientRect();
-              
-              const newX = (e.clientX - rect.left - dragOffset.current.x - canvasOffset.x) / zoom;
-              const newY = (e.clientY - rect.top - dragOffset.current.y - canvasOffset.y) / zoom;
-              
-              setNodes(prevNodes => prevNodes.map(node => {
-                if (node.id === selectedNode) {
-                  return {
-                    ...node,
-                    position: { x: newX, y: newY }
-                  };
-                }
-                return node;
-              }));
-            }
-            
-            // Update mouse position for connection preview
-            if (canvasContainerRef.current) {
-              const rect = canvasContainerRef.current.getBoundingClientRect();
-              const x = (e.clientX - rect.left - canvasOffset.x) / zoom;
-              const y = (e.clientY - rect.top - canvasOffset.y) / zoom;
-              setMousePosition({ x, y });
-            }
-          }}
+          onMouseMove={handleMouseMove}
           onMouseUp={(e) => {
             // End canvas dragging
             if (isDraggingCanvas.current) {
@@ -887,29 +886,35 @@ const DiagramEditor: React.FC = () => {
                   const newConnections = [...connections, newConnection];
                   setConnections(newConnections);
                   saveToHistory(nodes, newConnections);
-                  showFeedbackToast('Connection created successfully');
+                  
+                  // Provide visual feedback
+                  const sourceNode = nodes.find(n => n.id === connectionStart);
+                  if (sourceNode) {
+                    showFeedbackToast(`Connected ${sourceNode.name} to ${targetNode.name}`);
+                  }
                 }
+                
+                // Reset connection creation state
+                setIsCreatingConnection(false);
+                setConnectionStart(null);
               }
-              
-              setConnectionStart(null);
-              setIsCreatingConnection(false);
             }
           }}
         >
           {/* Connection creation indicator */}
           {isCreatingConnection && (
             <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md z-50 text-xs">
-              Click on another component to connect
-              <button 
-                onClick={() => {
-                  setConnectionStart(null);
-                  setIsCreatingConnection(false);
-                }}
-                className="ml-2 bg-blue-600 hover:bg-blue-700 rounded px-2 py-0.5"
-              >
-                Cancel
-              </button>
-            </div>
+            Click on another component to connect
+            <button 
+              onClick={() => {
+                setConnectionStart(null);
+                setIsCreatingConnection(false);
+              }}
+              className="ml-2 bg-blue-600 hover:bg-blue-700 rounded px-2 py-0.5"
+            >
+              Cancel
+            </button>
+          </div>
           )}
           
           {/* Feedback toast */}
@@ -935,7 +940,7 @@ const DiagramEditor: React.FC = () => {
             <div className="stars-large"></div>
             
             {/* Connections Layer */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+            <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" style={{ overflow: 'visible' }}>
               {/* Live connection preview */}
               {isCreatingConnection && connectionStart && (
                 <path
@@ -1046,7 +1051,7 @@ const DiagramEditor: React.FC = () => {
                         id: `c${Date.now()}`,
                         sourceId: connectionStart,
                         targetId: node.id,
-                        label: 'uses'
+                        label: "uses"
                       };
                       
                       const newConnections = [...connections, newConnection];
@@ -1075,6 +1080,8 @@ const DiagramEditor: React.FC = () => {
                   // Start dragging the node
                   if (!isCreatingConnection && canvasContainerRef.current) {
                     isDragging.current = true;
+                    setSelectedNode(node.id); // Ensure node is selected when dragging starts
+                    
                     const rect = canvasContainerRef.current.getBoundingClientRect();
                     
                     dragOffset.current = {
@@ -1085,7 +1092,7 @@ const DiagramEditor: React.FC = () => {
                 }}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <span 
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: node.color || '#2dd4bf' }}
@@ -1093,6 +1100,22 @@ const DiagramEditor: React.FC = () => {
                     <h4 className="font-medium text-sm text-gray-100">{node.name}</h4>
                   </div>
                   <div className="flex">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Create connection from this node
+                        setSelectedNode(node.id);
+                        setConnectionStart(node.id);
+                        setIsCreatingConnection(true);
+                        
+                        // Show visual feedback
+                        showFeedbackToast(`Select another component to connect from ${node.name}`);
+                      }}
+                      className="p-1 rounded-md hover:bg-indigo-800/50 text-gray-300 mr-1"
+                      title="Create connection"
+                    >
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1113,7 +1136,7 @@ const DiagramEditor: React.FC = () => {
                   <div className="mt-2 border-t border-gray-800/50 pt-2">
                     <textarea
                       className="w-full h-20 text-xs bg-black/90 p-2 rounded-sm border border-gray-800/50 resize-none text-gray-200"
-                      value={node.notes}
+                      value={node.notes || ''}
                       onChange={(e) => {
                         const updatedNodes = nodes.map(n => {
                           if (n.id === node.id) {
@@ -1135,7 +1158,7 @@ const DiagramEditor: React.FC = () => {
                       </div>
                       <textarea
                         className="w-full h-24 text-[10px] bg-black/90 p-2 rounded-sm font-mono border border-gray-800/50 resize-none text-gray-200"
-                        value={node.code}
+                        value={node.code || ''}
                         onChange={(e) => {
                           const updatedNodes = nodes.map(n => {
                             if (n.id === node.id) {
