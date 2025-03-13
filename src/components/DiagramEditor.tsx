@@ -35,6 +35,7 @@ interface ComponentNode {
   type: 'component' | 'page' | 'hook' | 'util';
   code: string;
   notes: string;
+  height?: number;
 }
 
 interface Connection {
@@ -65,6 +66,7 @@ const DiagramEditor: React.FC = () => {
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [isCreatingConnection, setIsCreatingConnection] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [viewportPosition, setViewportPosition] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [isPanMode, setIsPanMode] = useState(false);
@@ -137,10 +139,11 @@ const DiagramEditor: React.FC = () => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return { x: 0, y: 0 };
     
-    // The node width is fixed at 200px and height is approximately 80px
+    // The node width is fixed at 200px and height is dynamic based on expanded state
+    const nodeHeight = node.height || 80; // Default height if not specified
     return {
       x: node.position.x + 100, // Half the node width (200/2)
-      y: node.position.y + 40   // Approximate vertical center
+      y: node.position.y + nodeHeight / 2   // Dynamic vertical center
     };
   };
 
@@ -776,14 +779,22 @@ const DiagramEditor: React.FC = () => {
             e.preventDefault();
             if (!newNodeName.trim()) return;
             
+            // Calculate viewport center based on canvas offset, zoom, and container dimensions
+            const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+            const viewportCenterX = containerRect ? 
+              (-canvasOffset.x + containerRect.width / 2) / zoom : 200;
+            const viewportCenterY = containerRect ? 
+              (-canvasOffset.y + containerRect.height / 2) / zoom : 200;
+            
             const newNode: ComponentNode = {
               id: `n${Date.now()}`,
               name: newNodeName,
-              position: { x: 200, y: 200 },
+              position: { x: viewportCenterX - 100, y: viewportCenterY - 40 }, // Center in viewport
               color: colors[newNodeType],
               type: newNodeType,
               code: '',
-              notes: ''
+              notes: '',
+              height: 80 // Default height
             };
             
             const updatedNodes = [...nodes, newNode];
@@ -1008,13 +1019,48 @@ const DiagramEditor: React.FC = () => {
                       className={`${selectedConnection === connection.id ? 'glow-connection-teal' : ''}`}
                       onClick={() => setSelectedConnection(connection.id)}
                     />
-                    <path
-                      d="M 0,0 L -8,-4 L -8,4 Z"
-                      fill={selectedConnection === connection.id ? '#2dd4bf' : '#94a3b8'}
-                      transform={`translate(${targetCenter.x},${targetCenter.y}) rotate(${arrowAngle})`}
-                      onClick={() => setSelectedConnection(connection.id)}
-                      className="cursor-pointer"
-                    />
+                    
+                    {/* Custom connection icon replacing the arrow */}
+                    <svg 
+                      x={targetCenter.x - 10} 
+                      y={targetCenter.y - 10} 
+                      width="20" 
+                      height="20" 
+                      viewBox="0 0 300 300" 
+                      className="connection-icon"
+                    >
+                      {/* Gradient definitions */}
+                      <defs>
+                        <linearGradient id={`logoGradient-${connection.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#1d3b45" />
+                          <stop offset="20%" stopColor="#207076" />
+                          <stop offset="40%" stopColor="#20adb6" />
+                          <stop offset="60%" stopColor="#44a9dd" />
+                          <stop offset="80%" stopColor="#7c8cee" />
+                          <stop offset="100%" stopColor="#a87bff" />
+                        </linearGradient>
+                        
+                        <filter id={`softShadow-${connection.id}`} x="-10%" y="-10%" width="120%" height="120%">
+                          <feDropShadow dx="0" dy="1" stdDeviation="1" floodColor="#000" floodOpacity="0.2" />
+                        </filter>
+                      </defs>
+                      
+                      {/* Simplified icon */}
+                      <g transform="translate(100, 40)">
+                        {/* Component box */}
+                        <rect x="0" y="10" width="30" height="20" rx="3" ry="3" fill="none" stroke={selectedConnection === connection.id ? '#5eead4' : '#5d6370'} strokeWidth="1.5" />
+                        
+                        {/* Status indicator */}
+                        <circle cx="8" cy="20" r="3" fill={selectedConnection === connection.id ? '#5eead4' : '#4caf50'} />
+                        
+                        {/* Connection line */}
+                        <path d="M30 20 L40 20" stroke={selectedConnection === connection.id ? '#5eead4' : '#5d6370'} strokeWidth="1.5" />
+                        
+                        {/* Hook element */}
+                        <rect x="40" y="10" width="30" height="20" rx="10" ry="10" fill={selectedConnection === connection.id ? '#5eead4' : '#7c4dff'} opacity="0.9" />
+                      </g>
+                    </svg>
+                    
                     {/* Connection label */}
                     <text
                       x={midX}
@@ -1045,6 +1091,7 @@ const DiagramEditor: React.FC = () => {
                 style={{
                   left: `${node.position.x}px`,
                   top: `${node.position.y}px`,
+                  height: expandedNode === node.id && node.height ? `${node.height}px` : 'auto'
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1099,7 +1146,26 @@ const DiagramEditor: React.FC = () => {
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: node.color || '#2dd4bf' }}
                     ></span>
-                    <h4 className="font-medium text-sm text-gray-100">{node.name}</h4>
+                    {expandedNode === node.id ? (
+                      <input
+                        type="text"
+                        className="font-medium text-sm text-gray-100 bg-transparent border-b border-gray-700 focus:border-teal-500 outline-none w-full"
+                        value={node.name}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          const updatedNodes = nodes.map(n => {
+                            if (n.id === node.id) {
+                              return { ...n, name: e.target.value };
+                            }
+                            return n;
+                          });
+                          setNodes(updatedNodes);
+                        }}
+                        onBlur={() => saveToHistory(nodes, connections)}
+                      />
+                    ) : (
+                      <h4 className="font-medium text-sm text-gray-100">{node.name}</h4>
+                    )}
                   </div>
                   <div className="flex">
                     <button 
@@ -1136,6 +1202,9 @@ const DiagramEditor: React.FC = () => {
                 {/* Component expanded details (notes & code) */}
                 {expandedNode === node.id && (
                   <div className="mt-2 border-t border-gray-800/50 pt-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-medium text-gray-300">Notes:</label>
+                    </div>
                     <textarea
                       className="w-full h-20 text-xs bg-black/90 p-2 rounded-sm border border-gray-800/50 resize-none text-gray-200"
                       value={node.notes || ''}
@@ -1175,6 +1244,41 @@ const DiagramEditor: React.FC = () => {
                         placeholder="// Enter component code here..."
                         onClick={(e) => e.stopPropagation()}
                       ></textarea>
+                    </div>
+                    
+                    {/* Resize handle */}
+                    <div 
+                      className="mt-2 h-4 border-t border-gray-800/50 flex justify-center cursor-ns-resize"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startY = e.clientY;
+                        const startHeight = node.height || 220; // Default expanded height
+                        
+                        const handleMouseMove = (moveEvent: MouseEvent) => {
+                          const deltaY = moveEvent.clientY - startY;
+                          const newHeight = Math.max(220, startHeight + deltaY); // Minimum height
+                          
+                          const updatedNodes = nodes.map(n => {
+                            if (n.id === node.id) {
+                              return { ...n, height: newHeight };
+                            }
+                            return n;
+                          });
+                          
+                          setNodes(updatedNodes);
+                        };
+                        
+                        const handleMouseUp = () => {
+                          document.removeEventListener('mousemove', handleMouseMove);
+                          document.removeEventListener('mouseup', handleMouseUp);
+                          saveToHistory(nodes, connections);
+                        };
+                        
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                    >
+                      <div className="w-8 h-1 bg-gray-700 rounded-full"></div>
                     </div>
                   </div>
                 )}
