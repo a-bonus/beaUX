@@ -702,6 +702,28 @@ const DiagramEditor: React.FC = () => {
     '#84cc16', // lime
   ];
 
+  // Create a new empty diagram
+  const createNewDiagram = () => {
+    if (nodes.length > 0 || connections.length > 0) {
+      if (window.confirm("Create a new diagram? Any unsaved changes will be lost.")) {
+        setNodes([]);
+        setConnections([]);
+        setCurrentDiagramName('New Diagram');
+        setSelectedNode(null);
+        setSelectedConnection(null);
+        // Reset history
+        const newHistory = [{nodes: [], connections: []}];
+        setHistory(newHistory);
+        setHistoryIndex(0);
+        showFeedbackToast('Created new diagram');
+      }
+    } else {
+      // If current diagram is already empty
+      setCurrentDiagramName('New Diagram');
+      showFeedbackToast('Created new diagram');
+    }
+  };
+
   return (
     <div 
       ref={diagramContainerRef}
@@ -761,8 +783,20 @@ const DiagramEditor: React.FC = () => {
             {isPastDiagramsOpen && (
               <div className="absolute right-0 mt-1 w-64 bg-white rounded-md shadow-lg overflow-hidden z-50 border border-border">
                 <div className="py-2 max-h-96 overflow-y-auto">
-                  <div className="px-4 py-2 text-sm font-medium text-muted-foreground border-b border-border">
-                    Your Saved Diagrams
+                  <div className="px-4 py-2 text-sm font-medium text-muted-foreground border-b border-border flex justify-between items-center">
+                    <span>Your Saved Diagrams</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        createNewDiagram();
+                        setIsPastDiagramsOpen(false);
+                      }}
+                      className="text-xs bg-primary text-white px-2 py-0.5 rounded flex items-center hover:bg-primary/90"
+                      title="Create new diagram"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      New
+                    </button>
                   </div>
                   
                   {savedDiagrams.length === 0 ? (
@@ -925,6 +959,16 @@ const DiagramEditor: React.FC = () => {
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
             {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+          </button>
+          
+          {/* New Diagram Button */}
+          <button
+            onClick={createNewDiagram}
+            className="p-1.5 mr-2 rounded hover:bg-muted text-muted-foreground hover:text-foreground bg-green-100 flex items-center"
+            title="Create new diagram"
+          >
+            <Plus className="h-4 w-4 text-green-600" />
+            <span className="ml-1 text-xs font-medium text-green-800">New Diagram</span>
           </button>
         </div>
       </div>
