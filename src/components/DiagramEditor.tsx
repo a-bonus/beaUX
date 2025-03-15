@@ -179,18 +179,14 @@ const DiagramEditor: React.FC = () => {
     };
   };
 
-  // Helper function to get node center for connections
+  // Simple helper function to get node center position
   const getNodeCenter = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return { x: 0, y: 0 };
     
-    // Always use exact dimensions for perfectly centered connections
-    const nodeWidth = 200; // Fixed width of cards
-    const nodeHeight = 80; // Using fixed height for consistency
-    
     return {
-      x: node.position.x + nodeWidth / 2,
-      y: node.position.y + nodeHeight / 2
+      x: node.position.x + 100, // Half of 200px width
+      y: node.position.y + 40   // Half of 80px height
     };
   };
 
@@ -366,67 +362,67 @@ const DiagramEditor: React.FC = () => {
   // Sample data with tutorial content
   const initialSampleData: { nodes: ComponentNode[], connections: Connection[] } = {
     nodes: [
-      { 
-        id: 'welcome', 
-        name: 'Welcome to beaUX', 
-        position: { x: 350, y: 50 }, 
-        color: colors.page,
-        type: 'page',
-        code: '',
-        notes: 'This is an interactive diagram tool for planning React components and their relationships.'
-      },
-      { 
-        id: 'add', 
-        name: 'Add Components', 
-        position: { x: 150, y: 180 }, 
-        color: colors.component,
+      {
+        id: 'welcome',
+        name: 'Welcome',
         type: 'component',
-        code: '',
-        notes: 'Click the + button in the toolbar to add new components. Try different component types!'
+        position: { x: 100, y: 100 },
+        notes: 'This is a simple tutorial to help you get started with the diagram editor.',
+        color: colors.component,
+        code: ''
       },
-      { 
-        id: 'move', 
-        name: 'Move Components', 
-        position: { x: 550, y: 180 }, 
-        color: colors.hook,
-        type: 'hook',
-        code: '',
-        notes: 'Click the Move icon on any component to make it movable. Press E key or click elsewhere to fix position.'
+      {
+        id: 'add',
+        name: 'Add Components',
+        type: 'component',
+        position: { x: 400, y: 50 },
+        notes: 'Click the + button to add new components to your diagram. You can create components, pages, hooks, and utilities.',
+        color: colors.component,
+        code: ''
       },
-      { 
-        id: 'connect', 
-        name: 'Connect Components', 
-        position: { x: 350, y: 330 }, 
-        color: colors.util,
-        type: 'util',
-        code: '',
-        notes: 'Click the arrow icon on a component to create connections between components. Show how they relate to each other.'
+      {
+        id: 'move',
+        name: 'Move Components',
+        type: 'component',
+        position: { x: 400, y: 250 },
+        notes: 'Click the move icon on a component to make it movable, then drag it around. Press ESC or click elsewhere to stop moving.',
+        color: colors.component,
+        code: ''
+      },
+      {
+        id: 'connect',
+        name: 'Connect',
+        type: 'component',
+        position: { x: 700, y: 150 },
+        notes: 'Click the arrow icon on a component to create connections between components. Show how they relate to each other.',
+        color: colors.component,
+        code: ''
       }
     ],
     connections: [
       {
-        id: 'conn1',
+        id: 'c-welcome-add-1',
         sourceId: 'welcome',
         targetId: 'add',
-        label: ''
+        label: ""
       },
       {
-        id: 'conn2',
+        id: 'c-welcome-move-1',
         sourceId: 'welcome',
         targetId: 'move',
-        label: ''
+        label: ""
       },
       {
-        id: 'conn3',
+        id: 'c-add-connect-1',
         sourceId: 'add',
         targetId: 'connect',
-        label: ''
+        label: ""
       },
       {
-        id: 'conn4',
+        id: 'c-move-connect-1',
         sourceId: 'move',
         targetId: 'connect',
-        label: ''
+        label: ""
       }
     ]
   };
@@ -549,94 +545,28 @@ const DiagramEditor: React.FC = () => {
   };
 
   const handleCanvasMouseUp = (e: React.MouseEvent) => {
-    // End canvas dragging
-    if (isDraggingCanvas.current) {
-      isDraggingCanvas.current = false;
-      if (canvasContainerRef.current) {
-        canvasContainerRef.current.style.cursor = isPanMode ? 'grab' : 'default';
-      }
-    }
+    isDraggingCanvas.current = false;
     
-    // We don't end node dragging on mouse up with the sticky approach
-    // isDragging.current = false is now handled by the node click handler
-    
-    // Save history when dragging ends
+    // Finish dragging a node
     if (isDraggingNode && movableNode) {
+      // Save the state to history when finished dragging
       saveToHistory(nodes, connections);
-    }
-    
-    // Handle connection completion
-    if (connectionStart && isCreatingConnection) {
-      // Check if ended on a node
-      if (canvasContainerRef.current) {
-        const rect = canvasContainerRef.current.getBoundingClientRect();
-        const canvasX = (e.clientX - rect.left - canvasOffset.x) / zoom;
-        const canvasY = (e.clientY - rect.top - canvasOffset.y) / zoom;
-        
-        // Find if mouse is over any node
-        const targetNode = nodes.find(node => {
-          const nodeLeft = node.position.x - 5;
-          const nodeRight = node.position.x + 205; // 200px width + 5px padding
-          const nodeTop = node.position.y - 5;
-          const nodeBottom = node.position.y + 105; // Approximate height + 5px padding
-          
-          return canvasX >= nodeLeft && canvasX <= nodeRight && 
-                canvasY >= nodeTop && canvasY <= nodeBottom;
-        });
-        
-        if (targetNode && targetNode.id !== connectionStart) {
-          // Check if a connection already exists between these nodes
-          const connectionExists = connections.some(c => 
-            (c.sourceId === connectionStart && c.targetId === targetNode.id) ||
-            (c.sourceId === targetNode.id && c.targetId === connectionStart)
-          );
-          
-          if (!connectionExists) {
-            // Create the connection with a unique ID
-            const newConnection: Connection = {
-              id: `conn_${connectionStart}_${targetNode.id}_${Date.now()}`,
-              sourceId: connectionStart,
-              targetId: targetNode.id,
-              label: "uses"
-            };
-            
-            const newConnections = [...connections, newConnection];
-            setConnections(newConnections);
-            saveToHistory(nodes, newConnections);
-            
-            // Provide visual feedback
-            const sourceNode = nodes.find(n => n.id === connectionStart);
-            if (sourceNode) {
-              showFeedbackToast(`Connected ${sourceNode.name} to ${targetNode.name}`);
-            }
-          } else {
-            // Provide feedback that connection already exists
-            showFeedbackToast("Connection already exists between these nodes");
-          }
-        } else if (targetNode && targetNode.id === connectionStart) {
-          showFeedbackToast("Cannot connect a node to itself");
-        }
-        
-        // Reset connection creation state regardless of outcome
-        setIsCreatingConnection(false);
-        setConnectionStart(null);
-      }
     }
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-    // If we are in connection creation mode, cancel it
-    if (isCreatingConnection) {
-      setIsCreatingConnection(false);
-      setConnectionStart(null);
+    // Clear selections unless we're in connection mode
+    if (!isCreatingConnection) {
+      setSelectedNode(null);
+      setSelectedConnection(null);
     }
     
     // If we have a movable node, fix its position when clicking on canvas
-    exitMoveMode();
-    
-    // Clear selection
-    setSelectedNode(null); 
-    setSelectedConnection(null);
+    if (movableNode) {
+      setMovableNode(null);
+      setIsDraggingNode(false);
+      showFeedbackToast('Component position fixed');
+    }
   };
 
   // Function to exit move mode
@@ -1150,7 +1080,7 @@ const DiagramEditor: React.FC = () => {
               <div
                 key={node.id}
                 className={`flex items-center justify-between p-2 rounded-md text-xs ${
-                  selectedNode === node.id ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-100'
+                  selectedNode === node.id ? 'bg-blue-500/10 border border-blue-300/30' : 'bg-gray-800 border border-gray-700'
                 }`}
                 onClick={() => setSelectedNode(node.id === selectedNode ? null : node.id)}
               >
@@ -1159,9 +1089,23 @@ const DiagramEditor: React.FC = () => {
                     className="h-2.5 w-2.5 rounded-full"
                     style={{ backgroundColor: node.color || '#2dd4bf' }}
                   ></span>
-                  <span>{node.name}</span>
+                  <span className="text-white">{node.name}</span>
                 </div>
                 <div className="flex">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Create connection from this node
+                      setSelectedNode(node.id);
+                      setConnectionStart(node.id);
+                      setIsCreatingConnection(true);
+                      showFeedbackToast(`Select any component to connect from ${node.name}`);
+                    }}
+                    className="p-1 rounded-md hover:bg-indigo-800/50 text-gray-300 mr-1"
+                    title="Create connection"
+                  >
+                    <Link className="h-3.5 w-3.5" />
+                  </button>
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1176,10 +1120,10 @@ const DiagramEditor: React.FC = () => {
                       setSelectedNode(null);
                       saveToHistory(newNodes, newConnections);
                     }}
-                    className="p-1 rounded-md hover:bg-red-100 text-red-600"
+                    className="p-1 rounded-md hover:bg-red-500/50 text-gray-300"
                     title="Delete component"
                   >
-                    <Trash className="h-3 w-3" />
+                    <Trash className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
@@ -1285,37 +1229,33 @@ const DiagramEditor: React.FC = () => {
                 if (!sourceNode || !targetNode) return null;
                 
                 return (
-                  <div className="mb-3 text-xs">
-                    <div className="flex items-center mb-2">
-                      <span className="inline-block w-3 h-3 rounded-full mr-1" style={{ backgroundColor: sourceNode.color }}></span>
-                      <span className="font-medium">{sourceNode.name}</span>
+                  <>
+                    <div className="mb-3">
+                      <div className="text-gray-400 text-sm mb-1">From</div>
+                      <div className="text-white">{sourceNode?.name || 'Unknown'}</div>
                     </div>
-                    <div className="flex items-center justify-center mb-2">
-                      <ArrowDown className="h-3 w-3 text-gray-500" />
+                    
+                    <div className="mb-3">
+                      <div className="text-gray-400 text-sm mb-1">To</div>
+                      <div className="text-white">{targetNode?.name || 'Unknown'}</div>
                     </div>
-                    <div className="flex items-center">
-                      <span className="inline-block w-3 h-3 rounded-full mr-1" style={{ backgroundColor: targetNode.color }}></span>
-                      <span className="font-medium">{targetNode.name}</span>
-                    </div>
-                  </div>
+                    
+                    <button
+                      onClick={() => {
+                        // Remove this connection
+                        const newConnections = connections.filter(c => c.id !== selectedConnection);
+                        setConnections(newConnections);
+                        setSelectedConnection(null);
+                        saveToHistory(nodes, newConnections);
+                        showFeedbackToast("Connection deleted");
+                      }}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-md transition-colors"
+                    >
+                      Delete Connection
+                    </button>
+                  </>
                 );
               })()}
-              
-              {/* Delete button */}
-              <button
-                onClick={() => {
-                  // Filter out the selected connection
-                  const newConnections = connections.filter(c => c.id !== selectedConnection);
-                  setConnections(newConnections);
-                  setSelectedConnection(null);
-                  saveToHistory(nodes, newConnections);
-                  showFeedbackToast('Connection deleted');
-                }}
-                className="w-full text-xs text-white bg-red-500 hover:bg-red-600 rounded px-2 py-1 flex items-center justify-center gap-1"
-              >
-                <Trash className="h-3 w-3" />
-                Delete Connection
-              </button>
             </div>
           )}
         </div>
@@ -1368,20 +1308,33 @@ const DiagramEditor: React.FC = () => {
           onMouseUp={handleCanvasMouseUp}
           onClick={handleCanvasClick} // Add click handler here
         >
-          {/* Connection creation indicator */}
-          {isCreatingConnection && (
-            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md z-50 text-xs">
-            Click on another component to connect
-            <button 
-              onClick={() => {
-                setIsCreatingConnection(false);
-                setConnectionStart(null);
-              }}
-              className="ml-2 bg-blue-600 hover:bg-blue-700 rounded px-2 py-0.5"
-            >
-              Cancel
-            </button>
-          </div>
+          {/* Connection creation UI */}
+          {isCreatingConnection && connectionStart && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg z-50 shadow-lg border border-gray-700 flex items-center gap-3">
+              <span>Click on any component card to create a connection</span>
+              <button 
+                onClick={() => {
+                  setIsCreatingConnection(false);
+                  setConnectionStart(null);
+                }}
+                className="bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+          
+          {/* Connection preview when creating */}
+          {isCreatingConnection && connectionStart && (
+            <svg className="absolute inset-0 z-10 pointer-events-none">
+              <path
+                d={`M ${getNodeCenter(connectionStart).x} ${getNodeCenter(connectionStart).y} L ${mousePosition.x} ${mousePosition.y}`}
+                stroke="#22c55e"
+                strokeWidth={2}
+                strokeDasharray="5,5"
+                fill="none"
+              />
+            </svg>
           )}
           
           {/* Feedback toast */}
@@ -1421,127 +1374,58 @@ const DiagramEditor: React.FC = () => {
               
               {/* Existing connections */}
               {connections.map(connection => {
-                // Calculate path between two nodes
-                const sourceNode = nodes.find(n => n.id === connection.sourceId);
-                const targetNode = nodes.find(n => n.id === connection.targetId);
-                
-                if (!sourceNode || !targetNode) return null;
-                
-                // Get centers of nodes using the getNodeCenter helper
+                // Get the centers of both nodes
                 const sourceCenter = getNodeCenter(connection.sourceId);
                 const targetCenter = getNodeCenter(connection.targetId);
                 
-                // Calculate the intersection points where lines meet card edges
-                const sourceIntersection = calculateCardIntersection(sourceCenter, targetCenter);
-                const targetIntersection = calculateCardIntersection(targetCenter, sourceCenter);
+                // Draw a simple curved line between them
+                const dx = targetCenter.x - sourceCenter.x;
+                const dy = targetCenter.y - sourceCenter.y;
                 
-                // Calculate the path
-                const dx = targetIntersection.x - sourceIntersection.x;
-                const dy = targetIntersection.y - sourceIntersection.y;
-                const length = Math.sqrt(dx * dx + dy * dy);
+                // Adjust the midpoint based on multiple connections
+                // Randomly offset each connection slightly to make multiple connections visible
+                const mid = connection.id.charCodeAt(connection.id.length - 1) % 50 - 25;
+                const midX = (sourceCenter.x + targetCenter.x) / 2;
+                const midY = (sourceCenter.y + targetCenter.y) / 2 + mid;
                 
-                // Calculate control points for a curved path (for quadratic bezier)
-                const controlPointOffset = Math.min(80, length / 3);
-                
-                // Calculate the midpoint with offset for the control point
-                const midX = (sourceIntersection.x + targetIntersection.x) / 2 + controlPointOffset * Math.cos(Math.atan2(dy, dx) + Math.PI / 2);
-                const midY = (sourceIntersection.y + targetIntersection.y) / 2 + controlPointOffset * Math.sin(Math.atan2(dy, dx) + Math.PI / 2);
-                
-                // Calculate the path and angle for arrow
-                const path = `M ${sourceIntersection.x} ${sourceIntersection.y} Q ${midX} ${midY} ${targetIntersection.x} ${targetIntersection.y}`;
-                const arrowAngle = Math.atan2(targetIntersection.y - midY, targetIntersection.x - midX) * 180 / Math.PI;
+                // Create a simple quadratic bezier curve path
+                const path = `M ${sourceCenter.x} ${sourceCenter.y} Q ${midX} ${midY} ${targetCenter.x} ${targetCenter.y}`;
                 
                 return (
-                  <g key={connection.id} className="pointer-events-auto">
-                    <path
-                      d={path}
-                      fill="none"
-                      stroke={selectedConnection === connection.id ? '#2dd4bf' : '#94a3b8'}
-                      strokeWidth={selectedConnection === connection.id ? 3 : 2}
-                      className={`${selectedConnection === connection.id ? 'glow-connection-teal' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedConnection(connection.id);
-                      }}
-                      style={{
-                        cursor: 'pointer',
-                        // Make the clickable area larger
-                        strokeLinecap: 'round',
-                        strokeOpacity: 0.8
-                      }}
-                    />
-                    
-                    {/* Invisible wider path for easier selection */}
+                  <g key={connection.id}>
+                    {/* Wider invisible path for easier selection */}
                     <path
                       d={path}
                       stroke="transparent"
-                      strokeWidth={12}
+                      strokeWidth={20}
                       fill="none"
+                      className="pointer-events-auto"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedConnection(connection.id);
+                        setSelectedNode(null);
                       }}
                       style={{ cursor: 'pointer' }}
                     />
                     
-                    {/* Custom SVG connection icon at target end */}
-                    <g 
-                      transform={`translate(${targetIntersection.x},${targetIntersection.y}) rotate(${arrowAngle})`}
-                      onClick={(e) => setSelectedConnection(connection.id)}
-                    >
-                      {/* Move origin back to create the icon in front of the line end */}
-                      <g transform="translate(-15, -5)">
-                        {/* Container rect for better click target */}
-                        <rect 
-                          x="0" 
-                          y="0" 
-                          width="30" 
-                          height="10" 
-                          fill="none" 
-                          stroke="none"
-                        />
-                        
-                        {/* Connection path */}
-                        <path 
-                          d="M5,5 C8,2 12,8 15,5 C18,2 22,8 25,5" 
-                          stroke={selectedConnection === connection.id ? '#5eead4' : '#94a3b8'} 
-                          fill="none"
-                          strokeWidth="1.5"
-                        />
-                        
-                        {/* End point */}
-                        <circle 
-                          cx="25" 
-                          cy="5" 
-                          r="2" 
-                          fill={selectedConnection === connection.id ? '#5eead480' : '#f59e0b80'}
-                          stroke={selectedConnection === connection.id ? '#5eead4' : '#94a3b8'} 
-                          strokeWidth="1"
-                        />
-                        
-                        {/* Start point */}
-                        <circle 
-                          cx="5" 
-                          cy="5" 
-                          r="2" 
-                          fill={selectedConnection === connection.id ? '#5eead480' : '#3b82f680'}
-                          stroke={selectedConnection === connection.id ? '#5eead4' : '#94a3b8'} 
-                          strokeWidth="1"
-                        />
-                      </g>
-                    </g>
+                    {/* Visible connection line */}
+                    <path
+                      d={path}
+                      stroke={selectedConnection === connection.id ? '#22c55e' : '#94a3b8'}
+                      strokeWidth={selectedConnection === connection.id ? 3 : 2}
+                      fill="none"
+                      strokeDasharray={selectedConnection === connection.id ? "" : ""}
+                      className="pointer-events-none"
+                    />
                     
-                    {/* Connection label */}
-                    <text
-                      x={midX}
-                      y={midY - 10}
-                      fill={selectedConnection === connection.id ? '#5eead4' : '#e2e8f0'}
-                      fontSize="10"
-                      textAnchor="middle"
-                      className="pointer-events-none select-none space-text"
-                    >
-                      {connection.label}
-                    </text>
+                    {/* Simple arrow at the end */}
+                    <circle
+                      cx={targetCenter.x}
+                      cy={targetCenter.y}
+                      r={4}
+                      fill={selectedConnection === connection.id ? '#22c55e' : '#94a3b8'}
+                      className="pointer-events-none"
+                    />
                   </g>
                 );
               })}
@@ -1568,41 +1452,33 @@ const DiagramEditor: React.FC = () => {
                   
                   // If we're in connection creation mode
                   if (isCreatingConnection && connectionStart) {
-                    // Check if a connection already exists between these nodes
-                    const connectionExists = connections.some(c => 
-                      (c.sourceId === connectionStart && c.targetId === node.id) ||
-                      (c.sourceId === node.id && c.targetId === connectionStart)
-                    );
-                    
-                    if (!connectionExists) {
-                      // Create the connection with a unique ID
+                    // Don't connect to self
+                    if (node.id !== connectionStart) {
+                      // Create the connection with a simple unique ID - ensure uniqueness with timestamp
                       const newConnection: Connection = {
-                        id: `conn_${connectionStart}_${node.id}_${Date.now()}`,
+                        id: `c-${connectionStart}-${node.id}-${Date.now()}`,
                         sourceId: connectionStart,
                         targetId: node.id,
-                        label: "uses"
+                        label: ""
                       };
                       
+                      // Add the new connection
                       const newConnections = [...connections, newConnection];
                       setConnections(newConnections);
                       saveToHistory(nodes, newConnections);
                       
-                      // Provide visual feedback
-                      const sourceNode = nodes.find(n => n.id === connectionStart);
-                      if (sourceNode) {
-                        showFeedbackToast(`Connected ${sourceNode.name} to ${node.name}`);
-                      }
+                      showFeedbackToast(`Connected ${nodes.find(n => n.id === connectionStart)?.name || 'node'} to ${node.name}`);
                     } else {
-                      // Provide feedback that connection already exists
-                      showFeedbackToast("Connection already exists between these nodes");
+                      showFeedbackToast("Cannot connect a node to itself");
                     }
-                  } else {
-                    // Just select the node when clicked, but don't make it draggable
-                    // The Move icon button will be used for making nodes draggable
-                    setSelectedNode(node.id === selectedNode ? null : node.id);
-                    setSelectedConnection(null);
+                    
+                    // Reset connection creation state
                     setIsCreatingConnection(false);
                     setConnectionStart(null);
+                  } else {
+                    // Just select the node when clicked
+                    setSelectedNode(node.id === selectedNode ? null : node.id);
+                    setSelectedConnection(null);
                   }
                 }}
                 onMouseDown={(e) => {
@@ -1624,27 +1500,7 @@ const DiagramEditor: React.FC = () => {
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: node.color || '#2dd4bf' }}
                     ></span>
-                    {expandedNodes.has(node.id) ? (
-                      <input
-                        type="text"
-                        className="font-medium text-sm text-gray-100 bg-transparent border-b border-gray-700 focus:border-teal-500 outline-none w-full"
-                        value={node.name}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => {
-                          const updatedNodes = nodes.map(n => {
-                            if (n.id === node.id) {
-                              return { ...n, name: e.target.value };
-                            }
-                            return n;
-                          });
-                          
-                          setNodes(updatedNodes);
-                        }}
-                        onBlur={() => saveToHistory(nodes, connections)}
-                      />
-                    ) : (
-                      <h4 className="font-medium text-sm text-gray-100">{node.name}</h4>
-                    )}
+                    <span className="text-white">{node.name}</span>
                   </div>
                   <div className="flex">
                     <button 
@@ -1654,9 +1510,7 @@ const DiagramEditor: React.FC = () => {
                         setSelectedNode(node.id);
                         setConnectionStart(node.id);
                         setIsCreatingConnection(true);
-                        
-                        // Show visual feedback
-                        showFeedbackToast(`Select another component to connect from ${node.name}`);
+                        showFeedbackToast(`Select any component to connect from ${node.name}`);
                       }}
                       className="p-1 rounded-md hover:bg-indigo-800/50 text-gray-300 mr-1"
                       title="Create connection"
@@ -1986,6 +1840,59 @@ const DiagramEditor: React.FC = () => {
               )}
             </form>
           </div>
+        </div>
+      )}
+      
+      {/* Connection Settings Panel */}
+      {selectedConnection && (
+        <div className="absolute bottom-4 right-4 bg-gray-900 rounded-lg shadow-lg border border-gray-700 p-4 w-64 z-50">
+          <div className="flex justify-between items-center mb-3 border-b border-gray-700 pb-2">
+            <h3 className="text-white font-medium">Connection Settings</h3>
+            <button 
+              onClick={() => setSelectedConnection(null)}
+              className="text-gray-400 hover:text-white"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+          
+          {(() => {
+            const connection = connections.find(c => c.id === selectedConnection);
+            if (!connection) return null;
+            
+            const sourceNode = nodes.find(n => n.id === connection.sourceId);
+            const targetNode = nodes.find(n => n.id === connection.targetId);
+            
+            return (
+              <>
+                <div className="mb-3">
+                  <div className="text-gray-400 text-sm mb-1">From</div>
+                  <div className="text-white">{sourceNode?.name || 'Unknown'}</div>
+                </div>
+                
+                <div className="mb-3">
+                  <div className="text-gray-400 text-sm mb-1">To</div>
+                  <div className="text-white">{targetNode?.name || 'Unknown'}</div>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    // Remove this connection
+                    const newConnections = connections.filter(c => c.id !== selectedConnection);
+                    setConnections(newConnections);
+                    setSelectedConnection(null);
+                    saveToHistory(nodes, newConnections);
+                    showFeedbackToast("Connection deleted");
+                  }}
+                  className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-md transition-colors"
+                >
+                  Delete Connection
+                </button>
+              </>
+            );
+          })()}
         </div>
       )}
     </div>
