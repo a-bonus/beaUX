@@ -762,6 +762,63 @@ const DiagramEditor: React.FC = () => {
     };
   }, [movableNode, nodes, connections]);
 
+  // Handle clicking outside of selected nodes to collapse them by deselecting the node
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      // Only proceed if we have a selected node
+      if (selectedNode) {
+        // Check if the click was outside the sidebar nodes and node settings panel
+        const sidebarNodes = document.querySelectorAll('.sidebar-node');
+        const nodeSettingsPanel = document.querySelector('.node-settings-panel');
+        
+        let clickedInside = false;
+        
+        // Check if clicked on any sidebar node
+        sidebarNodes.forEach(node => {
+          if (node.contains(e.target as Node)) {
+            clickedInside = true;
+          }
+        });
+        
+        // Check if clicked on node settings panel
+        if (nodeSettingsPanel && nodeSettingsPanel.contains(e.target as Node)) {
+          clickedInside = true;
+        }
+        
+        // If clicked outside both, collapse by deselecting the node
+        if (!clickedInside) {
+          setSelectedNode(null);
+          setEditingNodeId(null);
+        }
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [selectedNode]);
+
+  // State for editing node names
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editingNodeName, setEditingNodeName] = useState('');
+
+  // Save edited node name
+  const saveNodeNameEdit = () => {
+    if (editingNodeId) {
+      const updatedNodes = nodes.map(node => {
+        if (node.id === editingNodeId) {
+          return { ...node, name: editingNodeName };
+        }
+        return node;
+      });
+      setNodes(updatedNodes);
+      saveToHistory(updatedNodes, connections);
+    }
+    setEditingNodeId(null);
+  };
+
   return (
     <div 
       ref={diagramContainerRef}
@@ -1079,33 +1136,52 @@ const DiagramEditor: React.FC = () => {
             {nodes.map(node => (
               <div
                 key={node.id}
-                className={`flex items-center justify-between p-2 rounded-md text-xs ${
-                  selectedNode === node.id ? 'bg-blue-500/10 border border-blue-300/30' : 'bg-gray-800 border border-gray-700'
+                className={`sidebar-node flex items-center justify-between p-2 rounded-md text-xs ${
+                  selectedNode === node.id ? 'bg-transparent border-2 border-blue-500' : 'bg-gray-800 border border-gray-700'
                 }`}
-                onClick={() => setSelectedNode(node.id === selectedNode ? null : node.id)}
+                onClick={() => {
+                  setSelectedNode(node.id === selectedNode ? null : node.id);
+                  // Reset any active name editing when selecting a new node
+                  if (selectedNode !== node.id) {
+                    setEditingNodeId(null);
+                  }
+                }}
               >
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-1 min-w-0">
                   <span 
-                    className="h-2.5 w-2.5 rounded-full"
+                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: node.color || '#2dd4bf' }}
                   ></span>
-                  <span className="text-white">{node.name}</span>
+                  {editingNodeId === node.id ? (
+                    <input
+                      className="bg-white text-gray-900 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      value={editingNodeName}
+                      onChange={(e) => setEditingNodeName(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          saveNodeNameEdit();
+                        } else if (e.key === 'Escape') {
+                          setEditingNodeId(null);
+                        }
+                      }}
+                      autoFocus
+                      onBlur={saveNodeNameEdit}
+                    />
+                  ) : (
+                    <span 
+                      className="text-white truncate"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setEditingNodeId(node.id);
+                        setEditingNodeName(node.name);
+                      }}
+                    >
+                      {node.name}
+                    </span>
+                  )}
                 </div>
                 <div className="flex">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Create connection from this node
-                      setSelectedNode(node.id);
-                      setConnectionStart(node.id);
-                      setIsCreatingConnection(true);
-                      showFeedbackToast(`Select any component to connect from ${node.name}`);
-                    }}
-                    className="p-1 rounded-md hover:bg-indigo-800/50 text-gray-300 mr-1"
-                    title="Create connection"
-                  >
-                    <Link className="h-3.5 w-3.5" />
-                  </button>
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1132,7 +1208,7 @@ const DiagramEditor: React.FC = () => {
           
           {/* Node Settings Panel - shows when a node is selected */}
           {selectedNode && (
-            <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+            <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200 node-settings-panel">
               <h3 className="text-xs font-medium mb-2">Node Settings</h3>
               
               {/* Color picker */}
