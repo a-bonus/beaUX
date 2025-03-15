@@ -1137,7 +1137,7 @@ const DiagramEditor: React.FC = () => {
               <div
                 key={node.id}
                 className={`sidebar-node flex items-center justify-between p-2 rounded-md text-xs ${
-                  selectedNode === node.id ? 'bg-transparent border-2 border-blue-500' : 'bg-gray-800 border border-gray-700'
+                  selectedNode === node.id ? 'bg-gray-800 border-2 border-blue-500' : 'bg-gray-800 border border-gray-700'
                 }`}
                 onClick={() => {
                   setSelectedNode(node.id === selectedNode ? null : node.id);
@@ -1170,7 +1170,7 @@ const DiagramEditor: React.FC = () => {
                     />
                   ) : (
                     <span 
-                      className="text-white truncate"
+                      className={`truncate text-white`}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         setEditingNodeId(node.id);
