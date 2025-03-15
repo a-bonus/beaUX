@@ -531,14 +531,17 @@ const DiagramEditor: React.FC = () => {
           const newX = mouseX / zoom - 100; // Half the node width
           const newY = mouseY / zoom - 40;  // Half the node height
           
-          // Update only the currently movable node
-          setNodes(prevNodes => 
-            prevNodes.map(node => 
-              node.id === movableNode 
-                ? { ...node, position: { x: newX, y: newY } } 
-                : node
-            )
-          );
+          // Use requestAnimationFrame for smoother updates
+          window.requestAnimationFrame(() => {
+            // Update only the currently movable node
+            setNodes(prevNodes => 
+              prevNodes.map(node => 
+                node.id === movableNode 
+                  ? { ...node, position: { x: newX, y: newY } } 
+                  : node
+              )
+            );
+          });
         }
       }
     }
@@ -1512,17 +1515,25 @@ const DiagramEditor: React.FC = () => {
               <div 
                 key={node.id}
                 ref={el => cardRefs.current[node.id] = el}
-                className={`absolute pointer-events-auto cursor-pointer rounded-md border galaxy-node ${
-                  selectedNode === node.id ? 'border-2 border-teal-400' : 
-                  isDraggingNode && selectedNode === node.id ? 'border-2 border-indigo-400' : 
-                  'border border-gray-700/50'
-                } bg-black/60 backdrop-blur-sm p-3 w-[200px] transition-all duration-300 ease-in-out relative`}
                 style={{
+                  position: 'absolute',
                   left: `${node.position.x}px`,
                   top: `${node.position.y}px`,
-                  zIndex: 10, // Ensure cards appear above connection lines
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5)'
+                  width: '200px',
+                  minHeight: '80px',
+                  transform: node.id === movableNode ? 'scale(1.02)' : 'scale(1)',
+                  transition: node.id === movableNode ? 'box-shadow 0.1s ease, transform 0.1s ease' : 'box-shadow 0.2s ease, transform 0.2s ease',
+                  zIndex: node.id === movableNode ? 100 : 10,
+                  boxShadow: node.id === movableNode ? '0 10px 25px -5px rgba(0, 0, 0, 0.2)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  backgroundColor: expandedNodes.has(node.id) ? 'white' : node.color || '#6366f1',
+                  borderRadius: '8px',
+                  border: selectedNode === node.id 
+                    ? '2px solid #3b82f6' 
+                    : expandedNodes.has(node.id) 
+                      ? '1px solid #ddd' 
+                      : '1px solid transparent'
                 }}
+                className={`node-card overflow-hidden galaxy-node pointer-events-auto ${movableNode === node.id ? 'cursor-move' : 'cursor-pointer'} absolute p-3 backdrop-blur-sm`}
                 onClick={(e) => {
                   e.stopPropagation();
                   
