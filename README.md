@@ -12,7 +12,7 @@ beaUX is a powerful development environment that combines React and React Native
 ## **🎨 Key Features**
 
 ### **Visual Architecture Designer**
-- Interactive canvas to visualize component relationships
+- Interactive canvas to visualize component relationships and brain mapping tool
 - Drag and drop interface for creating component diagrams
 - Local storage persistence for saving your designs
 - Add notes and annotations to your component architecture
