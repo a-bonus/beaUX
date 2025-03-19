@@ -1525,12 +1525,14 @@ const DiagramEditor: React.FC = () => {
                   transition: node.id === movableNode ? 'box-shadow 0.1s ease, transform 0.1s ease' : 'box-shadow 0.2s ease, transform 0.2s ease',
                   zIndex: node.id === movableNode ? 100 : 10,
                   boxShadow: node.id === movableNode ? '0 10px 25px -5px rgba(0, 0, 0, 0.2)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                  backgroundColor: expandedNodes.has(node.id) ? 'white' : node.color || '#6366f1',
+                  backgroundColor: expandedNodes.has(node.id) 
+                    ? `${node.color}f0` // Using semi-transparent version of the component color
+                    : node.color || '#6366f1',
                   borderRadius: '8px',
                   border: selectedNode === node.id 
                     ? '2px solid #3b82f6' 
                     : expandedNodes.has(node.id) 
-                      ? '1px solid #ddd' 
+                      ? `1px solid ${node.color}` 
                       : '1px solid transparent'
                 }}
                 className={`node-card overflow-hidden galaxy-node pointer-events-auto ${movableNode === node.id ? 'cursor-move' : 'cursor-pointer'} absolute p-3 backdrop-blur-sm`}
@@ -1651,12 +1653,12 @@ const DiagramEditor: React.FC = () => {
                 
                 {/* Component expanded details (notes & code) */}
                 {expandedNodes.has(node.id) && (
-                  <div className="mt-2 border-t border-gray-800/50 pt-2 relative">
+                  <div className="mt-2 border-t border-white/20 pt-2 relative">
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-[10px] font-medium text-gray-300">Notes:</label>
+                      <label className="text-[10px] font-medium text-white">Notes:</label>
                     </div>
                     <textarea
-                      className="w-full text-xs bg-black/70 p-2 rounded-sm border border-gray-800/50 resize-none text-gray-200"
+                      className="w-full text-xs bg-black/30 p-2 rounded-md border border-white/20 resize-none text-white"
                       style={{ minHeight: '80px' }}
                       value={node.notes || ''}
                       onChange={(e) => {
@@ -1683,9 +1685,9 @@ const DiagramEditor: React.FC = () => {
                     
                     <div className="mt-2">
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-[10px] font-medium text-gray-300">Component Code:</label>
+                        <label className="text-[10px] font-medium text-white">Component Code:</label>
                         <button
-                          className="text-[10px] text-gray-400 hover:text-white px-1.5 py-0.5 rounded hover:bg-gray-800"
+                          className="text-[10px] text-white/80 hover:text-white px-1.5 py-0.5 rounded hover:bg-black/30"
                           onClick={(e) => {
                             e.stopPropagation();
                             const updatedNodes = nodes.map(n => {
@@ -1707,7 +1709,7 @@ const DiagramEditor: React.FC = () => {
                       
                       {!node.isCodeCollapsed && (
                         <textarea
-                          className="w-full text-[10px] bg-black/70 p-2 rounded-sm font-mono border border-gray-800/50 resize-none text-gray-200"
+                          className="w-full text-[10px] bg-black/30 p-2 rounded-md font-mono border border-white/20 resize-none text-white"
                           style={{ minHeight: '100px' }}
                           value={node.code || ''}
                           onChange={(e) => {
