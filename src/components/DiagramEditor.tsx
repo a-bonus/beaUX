@@ -103,6 +103,14 @@ const DiagramEditor: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(240); // Fixed width now
   
+  // State for improved sidebar organization
+  const [searchTerm, setSearchTerm] = useState('');
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    new Set(['component', 'page', 'hook', 'util', 'notes'])
+  );
+  
   // Refs for interaction
   const editorRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -583,6 +591,35 @@ const DiagramEditor: React.FC = () => {
         showFeedbackToast(`${node.name} is no longer movable`);
       }
     }
+  };
+
+  // Function to toggle favorite status of a node
+  const toggleFavorite = (nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFavorites(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+        showFeedbackToast('Removed from favorites');
+      } else {
+        newSet.add(nodeId);
+        showFeedbackToast('Added to favorites');
+      }
+      return newSet;
+    });
+  };
+
+  // Function to toggle expanded/collapsed state of a node type group
+  const toggleGroup = (type: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(type)) {
+        newSet.delete(type);
+      } else {
+        newSet.add(type);
+      }
+      return newSet;
+    });
   };
 
   // Effect to measure card heights
@@ -1081,6 +1118,7 @@ const DiagramEditor: React.FC = () => {
           style={{ width: isSidebarCollapsed ? 0 : sidebarWidth }}
         >
           {/* Component form */}
+          {/* Add Component Form */}
           <form className="flex items-center mb-3" onSubmit={(e) => {
             e.preventDefault();
             if (!newNodeName.trim()) return;
@@ -1135,79 +1173,248 @@ const DiagramEditor: React.FC = () => {
             </button>
           </form>
           
-          <div className="space-y-1">
-            {nodes.map(node => (
-              <div
-                key={node.id}
-                className={`sidebar-node flex items-center justify-between p-2 rounded-md text-xs ${
-                  selectedNode === node.id ? 'bg-gray-800 border-2 border-blue-500' : 'bg-gray-800 border border-gray-700'
-                }`}
-                onClick={() => {
-                  setSelectedNode(node.id === selectedNode ? null : node.id);
-                  // Reset any active name editing when selecting a new node
-                  if (selectedNode !== node.id) {
-                    setEditingNodeId(null);
-                  }
-                }}
-              >
-                <div className="flex items-center gap-1 flex-1 min-w-0">
-                  <span 
-                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: node.color || '#2dd4bf' }}
-                  ></span>
-                  {editingNodeId === node.id ? (
-                    <input
-                      className="bg-white text-gray-900 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      value={editingNodeName}
-                      onChange={(e) => setEditingNodeName(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          saveNodeNameEdit();
-                        } else if (e.key === 'Escape') {
-                          setEditingNodeId(null);
-                        }
-                      }}
-                      autoFocus
-                      onBlur={saveNodeNameEdit}
-                    />
-                  ) : (
-                    <span 
-                      className={`truncate text-white`}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setEditingNodeId(node.id);
-                        setEditingNodeName(node.name);
-                      }}
-                    >
-                      {node.name}
-                    </span>
+          {/* Sidebar Organization Controls */}
+          <div className="space-y-2 mb-4">
+            {/* Search Bar */}
+            <div className="relative">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search components..."
+                className="w-full text-xs border border-border rounded-md pl-7 pr-2 py-1.5 bg-white"
+              />
+              <div className="absolute left-2 top-1.5 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </div>
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            
+            {/* Favorites Toggle */}
+            <label className="flex items-center gap-1.5 text-xs text-gray-700 hover:text-gray-900 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={showOnlyFavorites}
+                onChange={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                className="rounded text-blue-500"
+              />
+              Show favorites only
+            </label>
+          </div>
+          
+          {/* Nodes List */}
+          {showOnlyFavorites ? (
+            // Favorites View
+            <div className="space-y-1">
+              <h3 className="text-xs font-medium text-gray-500 mb-2">Favorites</h3>
+              {nodes
+                .filter(node => favorites.has(node.id))
+                .map(node => (
+                  <div
+                    key={node.id}
+                    className={`sidebar-node flex items-center justify-between p-2 rounded-md text-xs ${
+                      selectedNode === node.id ? 'bg-gray-800 border-2 border-blue-500' : 'bg-gray-800 border border-gray-700'
+                    }`}
+                    onClick={() => {
+                      setSelectedNode(node.id === selectedNode ? null : node.id);
+                      if (selectedNode !== node.id) {
+                        setEditingNodeId(null);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
+                      <span 
+                        className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: node.color || '#2dd4bf' }}
+                      ></span>
+                      {editingNodeId === node.id ? (
+                        <input
+                          className="bg-white text-gray-900 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          value={editingNodeName}
+                          onChange={(e) => setEditingNodeName(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              saveNodeNameEdit();
+                            } else if (e.key === 'Escape') {
+                              setEditingNodeId(null);
+                            }
+                          }}
+                          autoFocus
+                          onBlur={saveNodeNameEdit}
+                        />
+                      ) : (
+                        <span 
+                          className={`truncate text-white`}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setEditingNodeId(node.id);
+                            setEditingNodeName(node.name);
+                          }}
+                        >
+                          {node.name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={(e) => toggleFavorite(node.id, e)}
+                        className="p-1 rounded-md hover:bg-yellow-500/50 text-yellow-400"
+                        title="Remove from favorites"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Filter nodes and connections that don't involve this node
+                          const newNodes = nodes.filter(n => n.id !== node.id);
+                          const newConnections = connections.filter(
+                            c => c.sourceId !== node.id && c.targetId !== node.id
+                          );
+                          
+                          setNodes(newNodes);
+                          setConnections(newConnections);
+                          setSelectedNode(null);
+                          saveToHistory(newNodes, newConnections);
+                        }}
+                        className="p-1 rounded-md hover:bg-red-500/50 text-gray-300"
+                        title="Delete component"
+                      >
+                        <Trash className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            // Categorized View
+            <div className="space-y-2">
+              {Object.entries(
+                nodes
+                  .filter(node => {
+                    if (!searchTerm) return true;
+                    return (
+                      node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      node.type.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+                  })
+                  .reduce((acc, node) => {
+                    acc[node.type] = [...(acc[node.type] || []), node];
+                    return acc;
+                  }, {} as Record<string, ComponentNode[]>)
+              ).map(([type, typeNodes]) => (
+                <div key={type} className="mb-2">
+                  <button 
+                    onClick={() => toggleGroup(type)}
+                    className="flex items-center justify-between w-full text-xs font-medium py-1 px-2 bg-gray-700 rounded-md text-white hover:bg-gray-600 transition-colors"
+                  >
+                    <span>{type}s ({typeNodes.length})</span>
+                    {expandedGroups.has(type) ? 
+                      <ArrowDown className="h-3 w-3" /> : 
+                      <ArrowRight className="h-3 w-3" />
+                    }
+                  </button>
+                  
+                  {expandedGroups.has(type) && (
+                    <div className="mt-1 space-y-1 pl-1">
+                      {typeNodes.map(node => (
+                        <div
+                          key={node.id}
+                          className={`sidebar-node flex items-center justify-between p-2 rounded-md text-xs ${
+                            selectedNode === node.id ? 'bg-gray-800 border-2 border-blue-500' : 'bg-gray-800 border border-gray-700'
+                          }`}
+                          onClick={() => {
+                            setSelectedNode(node.id === selectedNode ? null : node.id);
+                            if (selectedNode !== node.id) {
+                              setEditingNodeId(null);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-1 flex-1 min-w-0">
+                            <span 
+                              className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: node.color || '#2dd4bf' }}
+                            ></span>
+                            {editingNodeId === node.id ? (
+                              <input
+                                className="bg-white text-gray-900 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                value={editingNodeName}
+                                onChange={(e) => setEditingNodeName(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    saveNodeNameEdit();
+                                  } else if (e.key === 'Escape') {
+                                    setEditingNodeId(null);
+                                  }
+                                }}
+                                autoFocus
+                                onBlur={saveNodeNameEdit}
+                              />
+                            ) : (
+                              <span 
+                                className={`truncate text-white`}
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingNodeId(node.id);
+                                  setEditingNodeName(node.name);
+                                }}
+                              >
+                                {node.name}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={(e) => toggleFavorite(node.id, e)}
+                              className={`p-1 rounded-md ${favorites.has(node.id) ? 'text-yellow-400 hover:bg-yellow-500/50' : 'text-gray-400 hover:bg-gray-600'}`}
+                              title={favorites.has(node.id) ? "Remove from favorites" : "Add to favorites"}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={favorites.has(node.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Filter nodes and connections that don't involve this node
+                                const newNodes = nodes.filter(n => n.id !== node.id);
+                                const newConnections = connections.filter(
+                                  c => c.sourceId !== node.id && c.targetId !== node.id
+                                );
+                                
+                                setNodes(newNodes);
+                                setConnections(newConnections);
+                                setSelectedNode(null);
+                                saveToHistory(newNodes, newConnections);
+                              }}
+                              className="p-1 rounded-md hover:bg-red-500/50 text-gray-300"
+                              title="Delete component"
+                            >
+                              <Trash className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div className="flex">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Filter nodes and connections that don't involve this node
-                      const newNodes = nodes.filter(n => n.id !== node.id);
-                      const newConnections = connections.filter(
-                        c => c.sourceId !== node.id && c.targetId !== node.id
-                      );
-                      
-                      setNodes(newNodes);
-                      setConnections(newConnections);
-                      setSelectedNode(null);
-                      saveToHistory(newNodes, newConnections);
-                    }}
-                    className="p-1 rounded-md hover:bg-red-500/50 text-gray-300"
-                    title="Delete component"
-                  >
-                    <Trash className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
           
           {/* Node Settings Panel - shows when a node is selected */}
           {selectedNode && (
