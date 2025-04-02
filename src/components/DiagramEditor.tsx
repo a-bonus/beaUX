@@ -1549,7 +1549,7 @@ const DiagramEditor: React.FC = () => {
         {/* Canvas */}
         <div 
           ref={canvasContainerRef}
-          className={`relative flex-1 ${isFullscreen ? 'h-[calc(100vh-44px)]' : 'h-[500px]'} overflow-hidden ${
+          className={`relative flex-1 ${isFullscreen ? 'h-[calc(100vh-44px)]' : 'h-[calc(100vh-180px)]'} overflow-hidden ${
             isPanMode 
               ? 'cursor-grab' 
               : isDraggingCanvas.current 

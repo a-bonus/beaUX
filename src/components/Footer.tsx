@@ -52,7 +52,7 @@ const Footer: React.FC<FooterProps> = ({ className }) => {
             <h3 className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-cyan-400 to-purple-500">beaUX</h3>
           </div>
           <p className="mt-3 text-white/70 text-sm text-center md:text-left">
-            The beautiful developer experience for React and React Native
+            The beautiful visual architecture design tool for React developers
           </p>
           <div className="mt-5 flex space-x-4">
             <a 
@@ -80,26 +80,20 @@ const Footer: React.FC<FooterProps> = ({ className }) => {
           <ul className="space-y-2">
             <li>
               <a 
-                href="#diagram" 
+                href="#visual-architect" 
                 className="text-white/70 hover:text-primary transition-colors text-sm"
               >
-                Visual Architecture Designer
+                The Visual Architect
               </a>
             </li>
             <li>
               <a 
-                href="#react-native" 
+                href="https://github.com/a-bonus" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-white/70 hover:text-primary transition-colors text-sm"
               >
-                AI Powered React Native Sandbox
-              </a>
-            </li>
-            <li>
-              <a 
-                href="#react-web" 
-                className="text-white/70 hover:text-primary transition-colors text-sm"
-              >
-                React Web Sandbox
+                GitHub
               </a>
             </li>
           </ul>
