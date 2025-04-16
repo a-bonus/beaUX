@@ -2269,7 +2269,7 @@ const DiagramEditor: React.ForwardRefExoticComponent<DiagramEditorProps> =
       />
     </div>
   );
-};
+});
 
 // AI prompt template for generating diagram JSON
 const aiPromptTemplate = `# beaUX Diagram Generation Prompt
@@ -2320,7 +2320,5 @@ I need you to analyze my React component architecture and generate a JSON repres
 [Describe your component architecture here, starting with the root component and the key relationships]
 
 Provide ONLY the JSON output in the exact format specified, with no additional explanations.`;
-
-});
 
 export default DiagramEditor;
