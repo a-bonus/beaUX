@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, FileInput } from 'lucide-react';
 
 interface HeaderProps {
   className?: string;
+  onOpenMermaidImport?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ className }) => {
+const Header: React.FC<HeaderProps> = ({ className, onOpenMermaidImport }) => {
   // Rotating text animation
   const rotatingWords = ["supercharges", "organizes", "empowers", "visualizes"];
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
@@ -72,6 +73,17 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       </div>
       
       <div className="flex items-center gap-4">
+        {/* Mermaid Import Button */}
+        {onOpenMermaidImport && (
+          <button
+            onClick={onOpenMermaidImport}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-medium hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 shadow-sm"
+          >
+            <FileInput className="h-4 w-4" />
+            <span>Import Mermaid</span>
+          </button>
+        )}
+        
         <div className="text-sm text-muted-foreground">
           <span className="px-2 py-1 rounded-full bg-secondary text-xs font-medium">
             Beta
@@ -90,7 +102,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       
       {/* Dropdown Menu */}
       {isMenuOpen && (
-        <div className="absolute top-full right-0 mt-1 w-48 bg-background rounded-md shadow-lg border border-border/60 overflow-hidden z-50">
+        <div className="absolute top-full right-0 mt-1 w-56 bg-background rounded-md shadow-lg border border-border/60 overflow-hidden z-50">
           <div className="py-1">
             <button 
               onClick={() => scrollToSection('visual-architect')}
@@ -103,6 +115,19 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
             >
               The Visual Architect
             </button>
+            
+            {onOpenMermaidImport && (
+              <button 
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onOpenMermaidImport();
+                }}
+                className="w-full text-left px-4 py-2 text-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+              >
+                <FileInput className="h-3.5 w-3.5" />
+                <span>Import Mermaid Diagram</span>
+              </button>
+            )}
           </div>
         </div>
       )}
