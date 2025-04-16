@@ -14,6 +14,7 @@ beaUX is a powerful development environment that combines React and React Native
 ### **Visual Architecture Designer**
 - Interactive canvas to visualize component relationships and brain mapping tool
 - Drag and drop interface for creating component diagrams and re-arranging notes, etc. 
+- Mermaid diagram import - easily convert your Mermaid flowcharts into interactive diagrams
 - Local storage persistence for saving your designs
 - Add notes and annotations to your component architecture
 
@@ -46,6 +47,9 @@ npm run dev
 
 ### **Usage**
 1. Access the Visual Architecture Designer to plan your component structure
+   - Create components and connections visually on the canvas
+   - Import existing Mermaid diagrams by clicking the Import from Mermaid button
+   - Export your diagrams as JSON or PNG
 2. Use the AI-Powered React Native Sandbox to create mobile components
 3. Switch to the React Web Sandbox for web component development
 4. All your work is automatically saved to local storage
@@ -54,6 +58,8 @@ npm run dev
 - Built with Vite + React TypeScript
 - TailwindCSS for styling
 - Babel for JSX transpilation
+- Mermaid for diagram parsing and import
+- Dagre for automatic graph layout
 - OpenRouter API for AI assistance
 - Expo Snack for React Native previews
 

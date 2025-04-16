@@ -26,9 +26,12 @@ import {
   ArrowRight,
   Link,
   Check,
-  ArrowDown
+  ArrowDown,
+  FileInput
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import MermaidImportModal from './MermaidImportModal';
+import useMermaidToBeaUX, { convertLayoutToBeaUXState } from '../hooks/useMermaidToBeaUX';
 
 interface ComponentNode {
   id: string;
@@ -90,6 +93,7 @@ const DiagramEditor: React.FC = () => {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isMermaidImportModalOpen, setIsMermaidImportModalOpen] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -123,6 +127,9 @@ const DiagramEditor: React.FC = () => {
   
   // Refs for each card to measure height
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Hook for Mermaid import functionality
+  const { processMermaid } = useMermaidToBeaUX();
 
   // Helper function to save to history for undo/redo
   const saveToHistory = (nodeState: ComponentNode[], connectionState: Connection[]) => {
@@ -285,6 +292,40 @@ const DiagramEditor: React.FC = () => {
     } catch (err) {
       console.error('Failed to import diagram:', err);
       setImportError(`Error importing diagram: ${err instanceof Error ? err.message : 'Invalid JSON format'}`);
+    }
+  };
+  
+  // Import diagram from Mermaid code
+  const handleMermaidImport = async (mermaidCode: string): Promise<{ error: string | null }> => {
+    try {
+      const layoutResult = await processMermaid(mermaidCode);
+      
+      if (layoutResult.error) {
+        return { error: layoutResult.error };
+      } else if (layoutResult.nodes.length === 0) {
+        return { error: "No nodes found in the Mermaid diagram." };
+      }
+      
+      // Convert to beaUX format
+      const { nodes: beaUXNodes, connections: beaUXConnections } = 
+        convertLayoutToBeaUXState(layoutResult);
+      
+      // Update state with new nodes and connections
+      setNodes(beaUXNodes);
+      setConnections(beaUXConnections);
+      
+      // Reset history with the imported state as the first entry
+      const initialState = { nodes: beaUXNodes, connections: beaUXConnections };
+      setHistory([initialState]);
+      setHistoryIndex(0);
+      
+      showFeedbackToast('Mermaid diagram imported successfully');
+      return { error: null };
+    } catch (err) {
+      console.error('Failed to import Mermaid diagram:', err);
+      return { 
+        error: `Error importing Mermaid diagram: ${err instanceof Error ? err.message : 'Unknown error'}` 
+      };
     }
   };
 
@@ -1071,6 +1112,13 @@ const DiagramEditor: React.FC = () => {
             title="Import JSON"
           >
             <FileJson className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={() => setIsMermaidImportModalOpen(true)}
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Import from Mermaid"
+          >
+            <FileInput className="h-4 w-4" />
           </button>
           <button 
             onClick={exportDiagramToJson}
@@ -2191,6 +2239,13 @@ const DiagramEditor: React.FC = () => {
           })()}
         </div>
       )}
+      
+      {/* Mermaid Import Modal */}
+      <MermaidImportModal
+        isOpen={isMermaidImportModalOpen}
+        onClose={() => setIsMermaidImportModalOpen(false)}
+        onImport={handleMermaidImport}
+      />
     </div>
   );
 };
