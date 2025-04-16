@@ -16,9 +16,8 @@ const section = {
 
 const Home: React.FC = () => {
   const [isMermaidImportModalOpen, setIsMermaidImportModalOpen] = useState(false);
-  const [diagramNodes, setDiagramNodes] = useState<any[]>([]);
-  const [diagramConnections, setDiagramConnections] = useState<any[]>([]);
   const { processMermaid } = useMermaidToBeaUX();
+  const diagramEditorRef = React.useRef<{ importDiagram: (nodes: any[], connections: any[]) => void } | null>(null);
 
   // Handle Mermaid import
   const handleMermaidImport = async (mermaidCode: string): Promise<{ error: string | null }> => {
@@ -35,9 +34,13 @@ const Home: React.FC = () => {
       const { nodes: beaUXNodes, connections: beaUXConnections } = 
         convertLayoutToBeaUXState(layoutResult);
       
-      // Update state with new nodes and connections
-      setDiagramNodes(beaUXNodes);
-      setDiagramConnections(beaUXConnections);
+      // Import the diagram via the ref
+      if (diagramEditorRef.current) {
+        diagramEditorRef.current.importDiagram(beaUXNodes, beaUXConnections);
+      } else {
+        console.error('DiagramEditor reference not available');
+        return { error: "Could not access diagram editor. Please try again." };
+      }
       
       return { error: null };
     } catch (err: any) {
@@ -89,7 +92,7 @@ const Home: React.FC = () => {
           
           {/* Expanded diagram area */}
           <div className="w-full max-w-full mx-auto px-2 flex-1">
-            <DiagramEditor />
+            <DiagramEditor ref={diagramEditorRef} />
           </div>
         </section>
       </main>

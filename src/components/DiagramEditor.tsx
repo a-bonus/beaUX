@@ -59,7 +59,14 @@ const colors = {
   notes: '#ec4899'      // pink
 };
 
-const DiagramEditor: React.FC = () => {
+interface DiagramEditorProps {
+  ref?: React.ForwardedRef<{
+    importDiagram: (nodes: ComponentNode[], connections: Connection[]) => void;
+  }>;
+}
+
+const DiagramEditor: React.ForwardRefExoticComponent<DiagramEditorProps> = 
+  React.forwardRef((props, ref) => {
   // State for nodes and connections
   const [nodes, setNodes] = useState<ComponentNode[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -150,6 +157,20 @@ const DiagramEditor: React.FC = () => {
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
   };
+  
+  // Method to import diagram from Mermaid
+  const importDiagram = (newNodes: ComponentNode[], newConnections: Connection[]) => {
+    setNodes(newNodes);
+    setConnections(newConnections);
+    // Save to history
+    saveToHistory(newNodes, newConnections);
+    showFeedbackToast('Diagram imported successfully');
+  };
+  
+  // Expose methods via ref
+  React.useImperativeHandle(ref, () => ({
+    importDiagram
+  }));
 
   // Helper function for feedback toasts
   const showFeedbackToast = (message: string) => {
@@ -2299,5 +2320,7 @@ I need you to analyze my React component architecture and generate a JSON repres
 [Describe your component architecture here, starting with the root component and the key relationships]
 
 Provide ONLY the JSON output in the exact format specified, with no additional explanations.`;
+
+});
 
 export default DiagramEditor;
