@@ -1,4 +1,4 @@
-# beaUX - The Beautiful Developer Experience
+# beaUX
 
 ![beaUX](https://img.shields.io/badge/status-beta-purple)
 
