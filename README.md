@@ -3,36 +3,26 @@
 ![beaUX](https://img.shields.io/badge/status-beta-purple)
 
 ## **✨ Overview**
-beaUX is a powerful development environment that combines React and React Native development tools in a beautiful, intuitive interface. It features:
+
+beaUX is a powerful development environment focused on visualizing and designing application architecture in a beautiful, intuitive interface. It features:
 
 1. **Visual Architecture Designer** – Visualize and plan your component architecture with an interactive canvas board, with all your designs saved to local storage.
-2. **AI-Powered React Native Sandbox** – Create, preview, and generate React Native components with AI assistance and Expo Snack integration.
-3. **React Web Sandbox** – Build React web components with real-time preview and AI-powered component generation.
 
 ## **🎨 Key Features**
 
 ### **Visual Architecture Designer**
-- Interactive canvas to visualize component relationships and brain mapping tool
-- Drag and drop interface for creating component diagrams and re-arranging notes, etc. 
-- Mermaid diagram import - easily convert your Mermaid flowcharts into interactive diagrams
-- Local storage persistence for saving your designs
-- Add notes and annotations to your component architecture
 
-### **AI-Powered React Native Sandbox**
-- Integrated AI assistant for generating React Native components
-- Live preview with Expo Snack
-- Automatic dependency detection and management
-- Multi-platform preview (web, iOS, Android)
-
-### **React Web Sandbox**
-- Real-time React component preview
-- AI-assisted component generation
-- Integrated code editor with syntax highlighting
-- Component library with reusable elements
+- **Interactive canvas** for visually designing, documenting, and iterating on component architecture (components, pages, hooks, utils, notes).
+- **Intuitive drag-and-drop** interface for creating, connecting, and rearranging elements.
+- **Mermaid diagram import** to seamlessly transition from text-based definitions to visual editing.
+- **Local storage persistence** for automatically saving and loading multiple diagram versions.
+- **Export** diagrams to JSON or PNG for sharing and documentation.
+- **Integrated notes and code snippets** directly within component nodes.
 
 ## **🚀 Getting Started**
 
 ### **Installation**
+
 ```bash
 # Clone the repository
 git clone https://github.com/a-bonus/beaUX.git
@@ -46,33 +36,26 @@ npm run dev
 ```
 
 ### **Usage**
+
 1. Access the Visual Architecture Designer to plan your component structure
    - Create components and connections visually on the canvas
    - Import existing Mermaid diagrams by clicking the Import from Mermaid button
    - Export your diagrams as JSON or PNG
-2. Use the AI-Powered React Native Sandbox to create mobile components
-3. Switch to the React Web Sandbox for web component development
-4. All your work is automatically saved to local storage
+2. All your work is automatically saved to local storage
 
 ## **🛠️ Technology Stack**
+
 - Built with Vite + React TypeScript
 - TailwindCSS for styling
 - Babel for JSX transpilation
 - Mermaid for diagram parsing and import
 - Dagre for automatic graph layout
-- OpenRouter API for AI assistance
-- Expo Snack for React Native previews
-
-## **🔮 Coming Soon**
-- Component export functionality
-- Full project scaffolding
-- Additional AI models
-- Theme customization
-- Collaborative editing
 
 ## **👨‍💻 Connect with the Creator**
+
 - [LinkedIn](https://linkedin.com/in/alainbonus)
 - [GitHub](https://github.com/a-bonus)
 
-## **💖 Made with heart for the vibe coders**
-This project is built with love for developers who appreciate beautiful tools and smooth experiences.
+## **💖 Made with heart for the vibe coder**
+
+This project is built with love for developers who appreciate beautiful tools, smooth experiences, and the ability to think clearly..
