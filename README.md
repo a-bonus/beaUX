@@ -4,7 +4,7 @@
 
 ## **✨ Overview**
 
-beaUX is a powerful development environment focused on visualizing and designing application architecture in a beautiful, intuitive interface. It features:
+beaUX is a powerful brain mapping tool focused on visualizing and designing application architecture in a beautiful, intuitive interface. It features:
 
 1. **Visual Architecture Designer** – Visualize and plan your component architecture with an interactive canvas board, with all your designs saved to local storage.
 
@@ -18,22 +18,6 @@ beaUX is a powerful development environment focused on visualizing and designing
 - **Local storage persistence** for automatically saving and loading multiple diagram versions.
 - **Export** diagrams to JSON or PNG for sharing and documentation.
 - **Integrated notes and code snippets** directly within component nodes.
-
-## **🚀 Getting Started**
-
-### **Installation**
-
-```bash
-# Clone the repository
-git clone https://github.com/a-bonus/beaUX.git
-cd beaUX
-
-# Install dependencies
-npm install
-
-# Start the development server
-npm run dev
-```
 
 ### **Usage**
 
