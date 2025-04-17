@@ -4,7 +4,7 @@
 
 ## **✨ Overview**
 
-beaUX is a powerful brain mapping tool focused on visualizing and designing application architecture in a beautiful, intuitive interface. It features:
+beaUX is a powerful brain mapping tool focused on visualizing and designing application architecture in a beautiful, intuitive interface. beaUX also serves as a brain dump tool for notes, ideas, and thoughts. It features:
 
 1. **Visual Architecture Designer** – Visualize and plan your component architecture with an interactive canvas board, with all your designs saved to local storage.
 
