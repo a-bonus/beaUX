@@ -43,3 +43,7 @@ beaUX is a powerful brain mapping tool focused on visualizing and designing appl
 ## **💖 Made with heart for the vibe coder**
 
 This project is built with love for developers who appreciate beautiful tools, smooth experiences, and the ability to think clearly..
+
+## **📖 Documentation**
+
+- **Codebase Overview:** [CODEBASE.md](./CODEBASE.md)
